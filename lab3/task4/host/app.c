@@ -24,31 +24,29 @@
 
 // Pointer declaration
 static T *X;
-static T *Y;
-static T *Y_host;
+static T host_reduc_res = 0;
+static T dpu_reduc_res = 0;
 
 // Create input arrays
-static void read_input(T *A, T *B, unsigned int nr_elements) {
+static void read_input(T *A, unsigned int nr_elements) {
     srand(0);
     printf("nr_elements\t%u\n", nr_elements);
     for (unsigned int i = 0; i < nr_elements; i++) {
         A[i] = (T)(rand());
-        B[i] = (T)(rand());
     }
 }
-
-
 
 // Compute output in the host for verification purposes
-static void red_max_host(T *vec, T *max, unsigned int nr_elements) {
-    assert (nr_elements != 0);
+// vec_red: Reduces a vector to its maximum element
+static void vec_red(T *vec, T *res, unsigned int nr_elements) {
+    assert(nr_elements != 0);
 
-    *max = vec[0];
+    *res = vec[0];
     for (unsigned int i = 0; i < nr_elements; i++) {
-        if (vec[i] > max) *max = vec[i];
+        if (vec[i] > *res)
+            *res = vec[i];
     }
 }
-
 
 // Main of the Host Application
 int main(int argc, char **argv) {
@@ -57,10 +55,8 @@ int main(int argc, char **argv) {
 
     // Timer declaration
     Timer timer;
-#if defined(CYCLES) || defined(INSTRUCTIONS)
     double cc = 0;
     double cc_min = 0;
-#endif
 
     // Allocate DPUs
     struct dpu_set_t dpu_set, dpu;
@@ -87,16 +83,13 @@ int main(int argc, char **argv) {
 
     // Input/output allocation in host main memory
     X = malloc(input_size_dpu_8bytes * nr_of_dpus * sizeof(T));
-    Y = malloc(input_size_dpu_8bytes * nr_of_dpus * sizeof(T));
-    Y_host = malloc(input_size_dpu_8bytes * nr_of_dpus * sizeof(T));
+
     T *bufferX = X;
-    T *bufferY = Y;
-    T alpha = p.alpha;
+
     unsigned int i = 0;
 
     // Create an input file with arbitrary data
-    read_input(X, Y, input_size);
-    memcpy(Y_host, Y, input_size_dpu_8bytes * nr_of_dpus * sizeof(T));
+    read_input(X, input_size);
 
     // Loop over main kernel
     for (int rep = 0; rep < p.n_warmup + p.n_reps; rep++) {
@@ -104,7 +97,8 @@ int main(int argc, char **argv) {
         if (rep >= p.n_warmup)
             start(&timer, 0, rep - p.n_warmup);
 
-        axpy_host(X, Y_host, input_size);
+        vec_red(X, &host_reduc_res, input_size);
+        printf("Computed vec_red on host\r\n");
 
         if (rep >= p.n_warmup)
             stop(&timer, 0);
@@ -117,13 +111,11 @@ int main(int argc, char **argv) {
             input_arguments[i].size = input_size_dpu_8bytes * sizeof(T);
             input_arguments[i].transfer_size = input_size_dpu_8bytes * sizeof(T);
             input_arguments[i].kernel = kernel;
-            input_arguments[i].alpha = alpha;
         }
         input_arguments[nr_of_dpus - 1].size =
             (input_size_8bytes - input_size_dpu_8bytes * (NR_DPUS - 1)) * sizeof(T);
         input_arguments[nr_of_dpus - 1].transfer_size = input_size_dpu_8bytes * sizeof(T);
         input_arguments[nr_of_dpus - 1].kernel = kernel;
-        input_arguments[nr_of_dpus - 1].alpha = alpha;
 
         if (rep >= p.n_warmup)
             start(&timer, 1, rep - p.n_warmup); // Start timer (CPU-DPU transfers)
@@ -137,7 +129,6 @@ int main(int argc, char **argv) {
         // Copy input arrays
 
         const uint32_t x_offset = 0;
-        const uint32_t y_offset = input_size_dpu_8bytes * sizeof(T);
 
 #ifdef SERIAL // Serial transfers
         //@@ INSERT SERIAL CPU-DPU TRANSFER HERE
@@ -149,16 +140,8 @@ int main(int argc, char **argv) {
         DPU_ASSERT(dpu_push_xfer(dpu_set, DPU_XFER_TO_DPU, DPU_MRAM_HEAP_POINTER_NAME, x_offset,
                                  input_size_dpu_8bytes * sizeof(T), DPU_XFER_DEFAULT));
 
-        i = 0; // Transfer Y vector chunks to DPUs @ MRAM heap end
-        DPU_FOREACH(dpu_set, dpu, i) {
-            DPU_ASSERT(dpu_prepare_xfer(dpu, &Y[i * input_size_dpu_8bytes]));
-        }
-        DPU_ASSERT(dpu_push_xfer(dpu_set, DPU_XFER_TO_DPU, DPU_MRAM_HEAP_POINTER_NAME, y_offset,
-                                 input_size_dpu_8bytes * sizeof(T), DPU_XFER_DEFAULT));
-
 #else // Parallel transfers
-
-        //@@ INSERT PARALLEL CPU-DPU TRANSFER HERE
+      //@@ INSERT PARALLEL CPU-DPU TRANSFER HERE
         i = 0; // Transfer X vector chunks to DPUs @ MRAM heap end
         DPU_FOREACH(dpu_set, dpu, i) {
             DPU_ASSERT(dpu_prepare_xfer(dpu, &X[i * input_size_dpu_8bytes]));
@@ -166,17 +149,10 @@ int main(int argc, char **argv) {
         DPU_ASSERT(dpu_push_xfer(dpu_set, DPU_XFER_TO_DPU, DPU_MRAM_HEAP_POINTER_NAME, x_offset,
                                  input_size_dpu_8bytes * sizeof(T), DPU_XFER_ASYNC));
 
-        i = 0; // Transfer Y vector chunks to DPUs @ MRAM heap end
-        DPU_FOREACH(dpu_set, dpu, i) {
-            DPU_ASSERT(dpu_prepare_xfer(dpu, &Y[i * input_size_dpu_8bytes]));
-        }
-        DPU_ASSERT(dpu_push_xfer(dpu_set, DPU_XFER_TO_DPU, DPU_MRAM_HEAP_POINTER_NAME, y_offset,
-                                 input_size_dpu_8bytes * sizeof(T), DPU_XFER_ASYNC));
-
         // wait for async transfers to complete
         DPU_ASSERT(dpu_sync(dpu_set));
-
 #endif
+        printf("Completed transfer from CPU to DPU\r\n");
         if (rep >= p.n_warmup)
             stop(&timer, 1); // Stop timer (CPU-DPU transfers)
 
@@ -201,39 +177,18 @@ int main(int argc, char **argv) {
             }
         }
 #endif
-
         printf("Retrieve results\n");
         if (rep >= p.n_warmup)
             start(&timer, 3, rep - p.n_warmup); // Start timer (DPU-CPU transfers)
         i = 0;
-        // Copy output array
-#ifdef SERIAL // Serial transfers
 
-        //@@ INSERT SERIAL DPU-CPU TRANSFER HERE
-        i = 0; // Copy Y vector chunks from DPUs
-        DPU_FOREACH(dpu_set, dpu, i) {
-            DPU_ASSERT(dpu_prepare_xfer(dpu, &Y[i * input_size_dpu_8bytes]));
-        }
-        DPU_ASSERT(dpu_push_xfer(dpu_set, DPU_XFER_FROM_DPU, DPU_MRAM_HEAP_POINTER_NAME, y_offset,
-                                 input_size_dpu_8bytes * sizeof(T), DPU_XFER_DEFAULT));
-
-#else // Parallel transfers
-      //@@ INSERT PARALLEL DPU-CPU TRANSFER HERE
-        i = 0; // Copy Y vector chunks from DPUs
-        DPU_FOREACH(dpu_set, dpu, i) {
-            DPU_ASSERT(dpu_prepare_xfer(dpu, &Y[i * input_size_dpu_8bytes]));
-        }
-        DPU_ASSERT(dpu_push_xfer(dpu_set, DPU_XFER_FROM_DPU, DPU_MRAM_HEAP_POINTER_NAME, y_offset,
-                                 input_size_dpu_8bytes * sizeof(T), DPU_XFER_ASYNC));
-
-        // wait for async transfers to complete
-        DPU_ASSERT(dpu_sync(dpu_set));
-#endif
         if (rep >= p.n_warmup)
             stop(&timer, 3); // Stop timer (DPU-CPU transfers)
 
-#if defined(CYCLES) || defined(INSTRUCTIONS)
         dpu_results_t results[nr_of_dpus];
+
+        uint8_t max_set = 0;
+
         // Parallel transfers
         dpu_results_t *results_retrieve[nr_of_dpus];
         DPU_FOREACH(dpu_set, dpu, i) {
@@ -243,14 +198,27 @@ int main(int argc, char **argv) {
         DPU_ASSERT(dpu_push_xfer(dpu_set, DPU_XFER_FROM_DPU, "DPU_RESULTS", 0,
                                  NR_TASKLETS * sizeof(dpu_results_t), DPU_XFER_DEFAULT));
         DPU_FOREACH(dpu_set, dpu, i) {
+            printf("Retrieving results from DPU=%d\r\n", i);
+
             results[i].count = 0;
             // Retrieve tasklet count
             for (unsigned int each_tasklet = 0; each_tasklet < NR_TASKLETS; each_tasklet++) {
-                if (results_retrieve[i][each_tasklet].count > results[i].count)
+                printf("tasklet_id=%d\r\n", each_tasklet);
+                if (results_retrieve[i][each_tasklet].count > results[i].count) {
                     results[i].count = results_retrieve[i][each_tasklet].count;
+                }
+
+                // overall max is the max of each DPU's tasklets
+                if (!max_set || results_retrieve[i][each_tasklet].reduc_res > dpu_reduc_res) {
+                    dpu_reduc_res = results_retrieve[i][each_tasklet].reduc_res;
+                    printf("setting max\r\n");
+                    max_set = 1;
+                }
             }
             free(results_retrieve[i]);
         }
+
+        assert(max_set);
 
         uint64_t max_count = 0;
         uint64_t min_count = 0xFFFFFFFFFFFFFFFF;
@@ -267,13 +235,9 @@ int main(int argc, char **argv) {
             cc += (double)max_count;
             cc_min += (double)min_count;
         }
-#endif
     }
-#ifdef CYCLES
     printf("DPU cycles  = %g\n", cc / p.n_reps);
-#elif INSTRUCTIONS
     printf("DPU instructions  = %g\n", cc / p.n_reps);
-#endif
 
     // Print timing results
     printf("CPU ");
@@ -282,27 +246,19 @@ int main(int argc, char **argv) {
     print(&timer, 1, p.n_reps);
     printf("DPU Kernel ");
     print(&timer, 2, p.n_reps);
-    printf("DPU-CPU ");
-    print(&timer, 3, p.n_reps);
 
     // Check output
-    bool status = true;
-    for (i = 0; i < input_size; i++) {
-        if (Y_host[i] != Y[i]) {
-            status = false;
-            printf("%d: %u -- %u\n", i, Y_host[i], Y[i]);
-        }
-    }
+    bool status = (dpu_reduc_res == host_reduc_res);
     if (status) {
         printf("[" ANSI_COLOR_GREEN "OK" ANSI_COLOR_RESET "] Outputs are equal\n");
     } else {
         printf("[" ANSI_COLOR_RED "ERROR" ANSI_COLOR_RESET "] Outputs differ!\n");
     }
 
+    // printf("DPU: %i CPU %i\r\n", dpu_reduc_res, host_reduc_res);
+
     // Deallocation
     free(X);
-    free(Y);
-    free(Y_host);
     DPU_ASSERT(dpu_free(dpu_set)); // Deallocate DPUs
 
     return status ? 0 : -1;

@@ -45,6 +45,7 @@ typedef struct {
 
 typedef struct {
     uint64_t count;
+    T reduc_res; // Result of a vector reduction
 } dpu_results_t; // Results (cycle count)
 
 #define ANSI_COLOR_RED     "\x1b[31m"
