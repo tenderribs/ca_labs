@@ -13,19 +13,21 @@ def gen_params():
     inp_sizes = [2]  # in MB
     dpu_cnts = [2]
     tasklets_cnts = [16]
-    dtypes = ["INT32", "INT64", "FLOAT", "DOUBLE", "CHAR", "SHORT"]
+    dtypes = [("INT32", 4),("INT64", 8),("FLOAT", 4),("DOUBLE", 8),("CHAR", 1),("SHORT", 2)]
     ops = ["OP_ADD", "OP_SUB", "OP_MULT", "OP_DIV"]
 
-    for inp_size in inp_sizes:
+    for inp_size_mb in inp_sizes:
         for n_dpus in dpu_cnts:
             for dtype in dtypes:
                 for op in ops:
                     for n_tasklets in tasklets_cnts:
+                        inp_size = int(inp_size_mb * 1024 * 1024 / dtype[1])
                         params.append(
                             {
+                                "inp_size_mb": inp_size_mb,
                                 "inp_size": inp_size,
                                 "n_dpus": n_dpus,
-                                "dtype": dtype,
+                                "dtype": dtype[0],
                                 "block": 10,
                                 "op": op,
                                 "n_tsklts": n_tasklets,
@@ -55,7 +57,7 @@ def run(params_list):
         sp.run(["make", "clean"], check=True, capture_output=True, text=True, timeout=120)
         sp.run(["make"], env=env, check=True, capture_output=True, text=True, timeout=120)
         result = sp.run(
-            ["./bin/host_code", "-w", "1", "-e", "2", "-i", str(p["inp_size"] * 131072), "-a", "1"],
+            ["./bin/host_code", "-w", "1", "-e", "2", "-i", str(p["inp_size"]), "-a", "1"],
             capture_output=True, text=True, timeout=120
         )
         stdout = result.stdout
