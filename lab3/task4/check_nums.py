@@ -1,0 +1,33 @@
+nums = [
+    0x7FFFCA11,
+    0x7FFF49CA,
+    0x7FFB1FC4,
+    0x7FFD5F7C,
+    0x7FFC2350,
+    0x7FFEF07D,
+    0x7FF8DA53,
+    0x7FFC67A8,
+    0x7FFD7524,
+    0x7FFC0CB2,
+    0x7FFE8BD2,
+    0x7FF3E448,
+    0x7FF83DFC,
+    0x7FFF9F9F,
+    0x7FFFBC02,
+    0x7FF6627B,
+]
+
+print(hex(max(nums)))
+
+dpu7 = [
+    0x7FCB7F0F,
+    0x7FE73F7B,
+    0x7FF473DF,
+    0x7FDFC1EE,
+    0x7FE4B43D,
+    0x7FC54BEA,
+    0x7FFCF1CB,
+    0x7FF6627B,
+]
+
+print(hex(max(dpu7)))

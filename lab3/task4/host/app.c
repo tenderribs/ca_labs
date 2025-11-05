@@ -83,6 +83,7 @@ int main(int argc, char **argv) {
 
     // Input/output allocation in host main memory
     X = malloc(input_size_dpu_8bytes * nr_of_dpus * sizeof(T));
+    uint64_t dpu_partials[nr_of_dpus];
 
     T *bufferX = X;
 
@@ -180,14 +181,40 @@ int main(int argc, char **argv) {
         printf("Retrieve results\n");
         if (rep >= p.n_warmup)
             start(&timer, 3, rep - p.n_warmup); // Start timer (DPU-CPU transfers)
+
+        // Transfer final reduced value onto CPU
         i = 0;
+        DPU_FOREACH(dpu_set, dpu, i) {
+            DPU_ASSERT(dpu_prepare_xfer(dpu, &dpu_partials[i]));
+        }
+        printf("Prepared targets\n");
+
+        // Synchronously copy the data back
+        // size and offset of mram read have to be at least 8 bytes. So copy the data over as an uint64_t and trim it to size T
+        DPU_ASSERT(dpu_push_xfer(dpu_set, DPU_XFER_FROM_DPU, DPU_MRAM_HEAP_POINTER_NAME, x_offset, 8, DPU_XFER_DEFAULT));
+        printf("copying data back\n");
+
+        // reduce the results from the DPUS to a final value
+        uint8_t filled = 0;
+        assert (sizeof(T) <= 8);
+        for (size_t i = 0; i < nr_of_dpus; i++) {
+
+            // trim the uint64_t to size of T (sizeof(T) <= 8)
+            T dpu_partial;
+            memcpy(&dpu_partial, &dpu_partials[i], sizeof(T));
+            printf("DPU#%ld partial = 0x%08x\r\n", i, dpu_partial);
+            if (!filled || dpu_partial > dpu_reduc_res) {
+                dpu_reduc_res = dpu_partial;
+                filled = 1;
+            }
+        }
+        assert(filled);
+
 
         if (rep >= p.n_warmup)
             stop(&timer, 3); // Stop timer (DPU-CPU transfers)
 
         dpu_results_t results[nr_of_dpus];
-
-        uint8_t max_set = 0;
 
         // Parallel transfers
         dpu_results_t *results_retrieve[nr_of_dpus];
@@ -198,27 +225,15 @@ int main(int argc, char **argv) {
         DPU_ASSERT(dpu_push_xfer(dpu_set, DPU_XFER_FROM_DPU, "DPU_RESULTS", 0,
                                  NR_TASKLETS * sizeof(dpu_results_t), DPU_XFER_DEFAULT));
         DPU_FOREACH(dpu_set, dpu, i) {
-            printf("Retrieving results from DPU=%d\r\n", i);
-
             results[i].count = 0;
             // Retrieve tasklet count
             for (unsigned int each_tasklet = 0; each_tasklet < NR_TASKLETS; each_tasklet++) {
-                printf("tasklet_id=%d\r\n", each_tasklet);
                 if (results_retrieve[i][each_tasklet].count > results[i].count) {
                     results[i].count = results_retrieve[i][each_tasklet].count;
-                }
-
-                // overall max is the max of each DPU's tasklets
-                if (!max_set || results_retrieve[i][each_tasklet].reduc_res > dpu_reduc_res) {
-                    dpu_reduc_res = results_retrieve[i][each_tasklet].reduc_res;
-                    printf("setting max\r\n");
-                    max_set = 1;
                 }
             }
             free(results_retrieve[i]);
         }
-
-        assert(max_set);
 
         uint64_t max_count = 0;
         uint64_t min_count = 0xFFFFFFFFFFFFFFFF;
@@ -246,7 +261,8 @@ int main(int argc, char **argv) {
     print(&timer, 1, p.n_reps);
     printf("DPU Kernel ");
     print(&timer, 2, p.n_reps);
-
+    printf("DPU-CPU ");
+    print(&timer, 3, p.n_reps);
     // Check output
     bool status = (dpu_reduc_res == host_reduc_res);
     if (status) {
@@ -255,7 +271,7 @@ int main(int argc, char **argv) {
         printf("[" ANSI_COLOR_RED "ERROR" ANSI_COLOR_RESET "] Outputs differ!\n");
     }
 
-    // printf("DPU: %i CPU %i\r\n", dpu_reduc_res, host_reduc_res);
+    printf("DPU: 0x%08x CPU 0x%08x\r\n", dpu_reduc_res, host_reduc_res);
 
     // Deallocation
     free(X);

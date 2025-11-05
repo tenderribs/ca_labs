@@ -13,13 +13,13 @@ def gen_params():
     inp_sizes = [2]  # in MB
     dpu_cnts = [2]
     tasklets_cnts = [16]
-    dtypes = ["INT32", "INT64", "FLOAT", "DOUBLE", "CHAR", "SHORT"]
-    ops = ["OP_ADD", "OP_SUB", "OP_MULT", "OP_DIV"]
+    dtypes = ["INT32"]
+    final_reductions = ["SINGLE", "TREE_BARRIER", "TREE_HANDSHAKE", "MUTEX"]
 
     for inp_size in inp_sizes:
         for n_dpus in dpu_cnts:
             for dtype in dtypes:
-                for op in ops:
+                for final_reduc in final_reductions:
                     for n_tasklets in tasklets_cnts:
                         params.append(
                             {
@@ -27,7 +27,7 @@ def gen_params():
                                 "n_dpus": n_dpus,
                                 "dtype": dtype,
                                 "block": 10,
-                                "op": op,
+                                "final_reduc": final_reduc,
                                 "n_tsklts": n_tasklets,
                             }
                         )
@@ -46,7 +46,7 @@ def run(params_list):
             "NR_DPUS": str(p["n_dpus"]),
             "NR_TASKLETS": str(p["n_tsklts"]),
             "BLOCK": str(p["block"]),
-            "OP": p["op"],
+            "FINAL": p["final_reduc"],
             "TYPE": p["dtype"],
             "TRANSFER": "PARALLEL",
             "PERF": "INSTRUCTIONS",
@@ -59,7 +59,7 @@ def run(params_list):
             capture_output=True, text=True, timeout=120
         )
         stdout = result.stdout
-
+        assert result.returncode == 0
         assert "Outputs are equal" in stdout
 
         cpu_dpu_match = re.search(r"CPU-DPU Time \(ms\):\s+([\d.]+)", stdout)
