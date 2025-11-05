@@ -1,6 +1,6 @@
 # build programs first with build.sh
 
-OUTFILE = "task3_out.csv"
+OUTFILE = "task4_out.csv"
 
 import subprocess as sp
 import re
@@ -10,26 +10,27 @@ import os
 def gen_params():
     params = []
 
-    inp_sizes = [2]  # in MB
-    dpu_cnts = [2]
-    tasklets_cnts = [16]
-    dtypes = [("INT32", 4),("INT64", 8),("FLOAT", 4),("DOUBLE", 8),("CHAR", 1),("SHORT", 2)]
-    ops = ["OP_ADD", "OP_SUB", "OP_MULT", "OP_DIV"]
+    inp_sizes = [16, 1 * 1024, 16 * 1024]  # in KB (16KB, 1 MB, 16, MB)
+    dpu_cnts = [32]
+    tasklets_cnts = [4, 8, 12, 16, 20, 24]
+    # dtypes = [("INT32", 4),("INT64", 8),("FLOAT", 4),("DOUBLE", 8),("CHAR", 1),("SHORT", 2)]
+    dtypes = [("INT32", 4)]
+    final_reductions = ["SINGLE", "TREE_BARRIER", "TREE_HANDSHAKE", "MUTEX"]
 
-    for inp_size_mb in inp_sizes:
+    for inp_size_kb in inp_sizes:
         for n_dpus in dpu_cnts:
             for dtype in dtypes:
-                for op in ops:
+                for final_reduc in final_reductions:
                     for n_tasklets in tasklets_cnts:
-                        inp_size = int(inp_size_mb * 1024 * 1024 / dtype[1])
+                        inp_size = int(inp_size_kb * 1024 / dtype[1])
                         params.append(
                             {
-                                "inp_size_mb": inp_size_mb,
+                                "inp_size_kb": inp_size_kb,
                                 "inp_size": inp_size,
                                 "n_dpus": n_dpus,
                                 "dtype": dtype[0],
                                 "block": 10,
-                                "op": op,
+                                "final_reduc": final_reduc,
                                 "n_tsklts": n_tasklets,
                             }
                         )
@@ -48,7 +49,7 @@ def run(params_list):
             "NR_DPUS": str(p["n_dpus"]),
             "NR_TASKLETS": str(p["n_tsklts"]),
             "BLOCK": str(p["block"]),
-            "OP": p["op"],
+            "FINAL": p["final_reduc"],
             "TYPE": p["dtype"],
             "TRANSFER": "PARALLEL",
             "PERF": "INSTRUCTIONS",
@@ -61,7 +62,7 @@ def run(params_list):
             capture_output=True, text=True, timeout=120
         )
         stdout = result.stdout
-
+        assert result.returncode == 0
         assert "Outputs are equal" in stdout
 
         cpu_dpu_match = re.search(r"CPU-DPU Time \(ms\):\s+([\d.]+)", stdout)
