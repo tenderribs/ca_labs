@@ -10,24 +10,22 @@ import os
 def gen_params():
     params = []
 
-    inp_sizes = [2]  # in MB
-    dpu_cnts = [2]
-    tasklets_cnts = [16]
-    dtypes = [("INT32", 4),("INT64", 8),("FLOAT", 4),("DOUBLE", 8),("CHAR", 1),("SHORT", 2)]
+    inp_sizes = [5e5]
+    dpu_cnts = [8]
+    tasklets_cnts = [16, 24]
+    dtypes = [ "INT32", "INT64", "FLOAT", "DOUBLE", "CHAR", "SHORT"]
     ops = ["OP_ADD", "OP_SUB", "OP_MULT", "OP_DIV"]
 
-    for inp_size_mb in inp_sizes:
+    for inp_size in inp_sizes:
         for n_dpus in dpu_cnts:
             for dtype in dtypes:
                 for op in ops:
                     for n_tasklets in tasklets_cnts:
-                        inp_size = int(inp_size_mb * 1024 * 1024 / dtype[1])
                         params.append(
                             {
-                                "inp_size_mb": inp_size_mb,
-                                "inp_size": inp_size,
+                                "inp_size": int(inp_size),
                                 "n_dpus": n_dpus,
-                                "dtype": dtype[0],
+                                "dtype": dtype,
                                 "block": 10,
                                 "op": op,
                                 "n_tsklts": n_tasklets,
