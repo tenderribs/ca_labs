@@ -26,7 +26,7 @@
 __host dpu_arguments_t DPU_INPUT_ARGUMENTS;
 __host dpu_results_t DPU_RESULTS[NR_TASKLETS];
 
-// array where each tasklet places its reduced value in
+// array where each tasklet places its partially reduced value
 static T tasklet_partials[NR_TASKLETS];
 
 #if defined(FINAL_MUTEX)
@@ -80,11 +80,14 @@ static T reduce_tree_barrier(unsigned int tasklet_id) {
     // wait for all tasklets to put their results in tasklet_partials[tasklet_id]
     barrier_wait(&my_barrier);
 
+    // walk through levels of tasklet_partials at increasing strides, coalescing
+    // subresults at given level into single value, till only one value remains
     for (unsigned int stride = 1; stride < NR_TASKLETS; stride <<= 1) {
         unsigned int group = stride << 1;
         if ((tasklet_id % group) == 0) {
             unsigned int partner = tasklet_id + stride;
             if (partner < NR_TASKLETS) {
+                // merge local node with partner at same level
                 T other = tasklet_partials[partner];
                 local = max_val(local, other);
                 tasklet_partials[tasklet_id] = local;
@@ -102,7 +105,8 @@ static T reduce_tree_barrier(unsigned int tasklet_id) {
 static T reduce_tree_handshake(unsigned int tasklet_id) {
     T local = tasklet_partials[tasklet_id];
 
-    for (unsigned int stride = 1, stage = 1; stride < NR_TASKLETS; stride <<= 1, ++stage) {
+    // tasklet_partials represents a flattened binary heap
+    for (unsigned int stride = 1; stride < NR_TASKLETS; stride <<= 1) {
         unsigned int group = stride << 1;
         if ((tasklet_id % group) == 0) {
             unsigned int partner = tasklet_id + stride;
