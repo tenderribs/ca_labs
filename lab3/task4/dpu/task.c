@@ -2,21 +2,24 @@
  * AXPY with multiple tasklets
  *
  */
+#include "mutex.h"
 #include <alloc.h>
 #include <assert.h>
 #include <barrier.h>
 #include <defs.h>
+#include <handshake.h>
 #include <mram.h>
 #include <perfcounter.h>
 #include <stdint.h>
 #include <stdio.h>
-#include "mutex.h"
+
 #include "../support/common.h"
 #include "../support/cyclecount.h"
 
-#if (defined(FINAL_SINGLE) + defined(FINAL_TREE_BARRIER) + defined(FINAL_TREE_HANDSHAKE) +      \
-    defined(FINAL_MUTEX)) != 1
-#error "Define exactly one final reduction strategy (FINAL=SINGLE|TREE_BARRIER|TREE_HANDSHAKE|MUTEX)."
+#if (defined(FINAL_SINGLE) + defined(FINAL_TREE_BARRIER) + defined(FINAL_TREE_HANDSHAKE) +         \
+     defined(FINAL_MUTEX)) != 1
+#error                                                                                             \
+    "Define exactly one final reduction strategy (FINAL=SINGLE|TREE_BARRIER|TREE_HANDSHAKE|MUTEX)."
 #endif
 
 // Input and output arguments
@@ -25,10 +28,6 @@ __host dpu_results_t DPU_RESULTS[NR_TASKLETS];
 
 // array where each tasklet places its reduced value in
 static T tasklet_partials[NR_TASKLETS];
-
-#if defined(FINAL_TREE_HANDSHAKE)
-static volatile uint8_t handshake_stage[NR_TASKLETS];
-#endif
 
 #if defined(FINAL_MUTEX)
 MUTEX_INIT(my_mutex);
@@ -71,13 +70,16 @@ static T reduce_single_tasklet(unsigned int tasklet_id) {
         tasklet_partials[0] = acc;
         return acc;
     }
-    return (T)0;
+
+    return (T)0; // we never use this return value further
 }
 #elif defined(FINAL_TREE_BARRIER)
 static T reduce_tree_barrier(unsigned int tasklet_id) {
     T local = tasklet_partials[tasklet_id];
 
+    // wait for all tasklets to put their results in tasklet_partials[tasklet_id]
     barrier_wait(&my_barrier);
+
     for (unsigned int stride = 1; stride < NR_TASKLETS; stride <<= 1) {
         unsigned int group = stride << 1;
         if ((tasklet_id % group) == 0) {
@@ -88,6 +90,9 @@ static T reduce_tree_barrier(unsigned int tasklet_id) {
                 tasklet_partials[tasklet_id] = local;
             }
         }
+
+        // wait till all tasklets reach the same synchronization point
+        // before the next stride begins
         barrier_wait(&my_barrier);
     }
 
@@ -102,7 +107,9 @@ static T reduce_tree_handshake(unsigned int tasklet_id) {
         if ((tasklet_id % group) == 0) {
             unsigned int partner = tasklet_id + stride;
             if (partner < NR_TASKLETS) {
-                handshake_notify_wait(partner);
+                handshake_wait_for(partner);
+
+                // read and merge partner
                 T other = tasklet_partials[partner];
                 local = max_val(local, other);
                 tasklet_partials[tasklet_id] = local;
@@ -157,15 +164,10 @@ int main_kernel1() {
     printf("tasklet_id = %u\n", tasklet_id);
 #endif
     if (tasklet_id == 0) {
-        mem_reset(); // Reset the heap
-        perfcounter_config(COUNT_CYCLES, true); // Initialize once the cycle counter
+        mem_reset();                                  // Reset the heap
+        perfcounter_config(COUNT_CYCLES, true);       // Initialize once the cycle counter
         perfcounter_config(COUNT_INSTRUCTIONS, true); // Initialize once the instruction counter
 
-#if defined(FINAL_TREE_HANDSHAKE)
-        for (unsigned int i = 0; i < NR_TASKLETS; ++i) {
-            handshake_stage[i] = 0;
-        }
-#endif
 #if defined(FINAL_MUTEX)
         mutex_accum = 0;
         accum_initialized = 0;
@@ -224,7 +226,8 @@ int main_kernel1() {
         // Computer vector reduction
         unsigned int num_elems = act_tf_size / sizeof(T);
 
-        vec_red(wram_base_addr_X, &tasklet_partials[tasklet_id], num_elems, tasklet_res_uninitialized);
+        vec_red(wram_base_addr_X, &tasklet_partials[tasklet_id], num_elems,
+                tasklet_res_uninitialized);
         tasklet_res_uninitialized = 0;
     }
 

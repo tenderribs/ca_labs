@@ -184,19 +184,19 @@ int main(int argc, char **argv) {
 
         // Transfer final reduced value onto CPU
         i = 0;
-        DPU_FOREACH(dpu_set, dpu, i) {
-            DPU_ASSERT(dpu_prepare_xfer(dpu, &dpu_partials[i]));
-        }
+        DPU_FOREACH(dpu_set, dpu, i) { DPU_ASSERT(dpu_prepare_xfer(dpu, &dpu_partials[i])); }
         printf("Prepared targets\n");
 
         // Synchronously copy the data back
-        // size and offset of mram read have to be at least 8 bytes. So copy the data over as an uint64_t and trim it to size T
-        DPU_ASSERT(dpu_push_xfer(dpu_set, DPU_XFER_FROM_DPU, DPU_MRAM_HEAP_POINTER_NAME, x_offset, 8, DPU_XFER_DEFAULT));
+        // size and offset of mram read have to be at least 8 bytes. So copy the data over as an
+        // uint64_t and trim it to size T
+        DPU_ASSERT(dpu_push_xfer(dpu_set, DPU_XFER_FROM_DPU, DPU_MRAM_HEAP_POINTER_NAME, x_offset,
+                                 8, DPU_XFER_DEFAULT));
         printf("copying data back\n");
 
         // reduce the results from the DPUS to a final value
         uint8_t filled = 0;
-        assert (sizeof(T) <= 8);
+        assert(sizeof(T) <= 8);
         for (size_t i = 0; i < nr_of_dpus; i++) {
 
             // trim the uint64_t to size of T (sizeof(T) <= 8)
@@ -209,7 +209,6 @@ int main(int argc, char **argv) {
             }
         }
         assert(filled);
-
 
         if (rep >= p.n_warmup)
             stop(&timer, 3); // Stop timer (DPU-CPU transfers)
