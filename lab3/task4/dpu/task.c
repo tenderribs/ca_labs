@@ -93,6 +93,9 @@ static T reduce_tree_barrier(unsigned int tasklet_id) {
                 tasklet_partials[tasklet_id] = local;
             }
         }
+
+        // wait for the partial results to accumulate before combining
+        barrier_wait(&my_barrier);
     }
 
     return tasklet_partials[0];
