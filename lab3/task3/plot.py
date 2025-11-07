@@ -62,9 +62,9 @@ def plot_grouped_bars(per_op_dtype: Dict[str, Dict[str, float]]) -> None:
 
 	ax.set_xticks(x_pos)
 	ax.set_xticklabels([op.replace("OP_", "") for op in ops])
-	ax.set_ylabel("Instructions per Input Element")
+	ax.set_ylabel("Instructions per Arithmetic Operation")
 	ax.set_xlabel("Operation")
-	ax.set_title("Instruction Cost per Element by Operation and Data Type")
+	# ax.set_title("Instruction Cost per Arithmetic Operation")
 	ax.grid(axis="y", linestyle="--", alpha=0.4)
 	ax.legend(title="Data Type")
 

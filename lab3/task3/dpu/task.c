@@ -32,9 +32,8 @@ int main(void) {
     return kernels[DPU_INPUT_ARGUMENTS.kernel]();
 }
 
-// AXPY: Computes AXPY for a cached block
-static void axpy(T *bufferY, T *bufferX, unsigned int l_size) {
-    //@@ INSERT AXPY CODE
+// Computes arithmetic operation for a cached block
+static void arithm_op(T *bufferY, T *bufferX, unsigned int l_size) {
     for (unsigned int i = 0; i < l_size; i++) {
 #if defined(OP_ADD)
         bufferY[i] = bufferX[i] + bufferY[i];
@@ -43,7 +42,7 @@ static void axpy(T *bufferY, T *bufferX, unsigned int l_size) {
 #elif defined(OP_MULT)
         bufferY[i] = bufferX[i] * bufferY[i];
 #elif defined(OP_DIV)
-    /* Protect integer division from divide-by-zero which causes SIGFPE on DPUs. */
+    /* Protect integer division from divide-by-zero which causes exception */
 #if defined(FLOAT) || defined(DOUBLE)
     bufferY[i] = bufferX[i] / bufferY[i];
 #else
@@ -122,7 +121,7 @@ int main_kernel1() {
         // Computer vector addition
         //@@ INSERT CALL TO AXPY FUNCTION HERE
         unsigned int num_elems = act_tf_size / sizeof(T);
-        axpy(wram_base_addr_Y, wram_base_addr_X, num_elems);
+        arithm_op(wram_base_addr_Y, wram_base_addr_X, num_elems);
 
         // Write cache to current MRAM block
         //@@ INSERT WRAM-MRAM TRANSFER HERE

@@ -95,13 +95,14 @@ In this scenario, the highest bandwidth is measured at DPU counts less than 5. T
 - CPU→DPU is consistently faster than DPU→CPU.
 - `SERIAL` and `PARALLEL` look similar here because the asynchrony only helps when you queue multiple outstanding transfers before waiting. In our implementation we issue one transfer and then immediately call `dpu_sync`, which collapses the overlap and makes it behave close to the synchronous version. To expose a benefit, we would need to pipeline several transfers (e.g., multiple chunks or directions) before the sync.
 - `BROADCAST` delivers the highest CPU→DPU bandwidth, indicating that fixed overheads are better amortized compared to the other transfer methods.
-<!--
-Why the curve peaks early and then declines roughly linearly (more visible at 24–48 MB):
 
-1) Latency amortization then saturation. With a few DPUs, adding more increases parallelism of DMA/transfer engines and quickly fills the shared path, so aggregate bandwidth rises. Once the shared bottleneck (host memory bandwidth, link/interface to the DPU ranks, or driver submission rate) saturates, more DPUs only add contention.
-2) Per‑DPU fixed overheads. Each additional DPU incurs a relatively constant setup/handshake cost (descriptor preparation, queueing, validation, completion handling). If the payload per DPU is fixed, total time ~ payload_time + N × setup_time, which makes measured bandwidth (total_bytes / total_time) fall approximately linearly in N beyond the saturation point.
-3) Broadcast specifics. For broadcast, the host still processes N completions/acks even if the data payload was issued once. As N grows, these control-path costs dominate after the peak, producing the gradual decline.
-4) Host effects at scale. More DPUs imply more host-side buffers and metadata, which can increase cache/TLB pressure and reduce copy efficiency, further flattening or lowering throughput after the peak. -->
+
+
+
+
+
+
+
 
 ## Task 2 AXPY
 
@@ -126,25 +127,115 @@ As suggested by the line plot in [@fig:inst_vs_tlet_cnt], the instruction count 
 
 Therefore for the AXPY kernel with 512-byte blocks, adding tasklets beyond a small count yields diminishing or negative returns due to fixed overheads and memory contention. A performance speedup can instead be achieved by leveraging parallelism in the number of DPUs allocated for computation. The instruction count per tasklet for 64 DPUs consistently is half that of the one with 32 DPUs.
 
+
+
+
+
+
+
+
+
 ## Task 3 Operations and Data Types
 
-The goal of this task is the quantify the computational cost of arithmetic operations on the DPUs.
+The goal of this task is to quantify the computational cost of arithmetic operations on the DPUs across different data types.
 
 ### Implementation Details
 
+Task 3 builds upon the AXPY kernel from Task 2, but generalizes the computation to support four different arithmetic operations (addition, subtraction, multiplication, and division) across six data types. The operation and data type are selected at compile time via preprocessor macros.
+
+The implementation architecture remains similar to Task 2: input vectors $x$ and $y$ are distributed across DPUs' MRAM heaps with parallel transfers from the host. Each DPU spawns tasklets that collaboratively process their assigned vector chunks.
+
+The core `axpy` function is modified to perform element-wise operations based on the selected macro. Special handling is required for division: for integer types, divide-by-zero is explicitly guarded to prevent `SIGFPE` signals on the DPUs by checking if the denominator is non-zero before performing the division. For floating-point types, standard IEEE 754 semantics are preserved.
+
+```c
+// Computes arithmetic operation for a cached block
+static void arithm_op(T *bufferY, T *bufferX, unsigned int l_size) {
+    for (unsigned int i = 0; i < l_size; i++) {
+#if defined(OP_ADD)
+        bufferY[i] = bufferX[i] + bufferY[i];
+#elif defined(OP_SUB)
+        bufferY[i] = bufferX[i] - bufferY[i];
+#elif defined(OP_MULT)
+        bufferY[i] = bufferX[i] * bufferY[i];
+#elif defined(OP_DIV)
+    /* Protect integer division from divide-by-zero which causes exception */
+#if defined(FLOAT) || defined(DOUBLE)
+    bufferY[i] = bufferX[i] / bufferY[i];
+#else
+    bufferY[i] = (bufferY[i] != 0) ? (bufferX[i] / bufferY[i]) : (T)0;
+#endif
+#endif
+    }
+}
+```
+
 ### Evaluation
+
+To measure the arithmetic throughput of each combination of data type and arithmetic operation, I measured the number of DPU kernel instructions required to compute 500'000 respective arithmetic operations. The results are plotted in [@fig:inst_vs_arith_op_dtype].
+
+![Instructions per arithmetic operation with different operations and datatypes. WRAM block size = 1024B, 16 tasklets, 8 DPUs, 500k operations. Demonstrates the high costs of software emulation.](./plots/t3_instr_per_element_by_op_n_dtype.eps){#fig:inst_vs_arith_op_dtype}
+
+The results clearly indicate that integer addition and subtraction can be performed with very few instructions, while integer division and multiplication is considerably more expensive. Floating point operations are very expensive, especially for division and multiplication.
 
 ### Analysis and Observations
 
-DPUs provide native hardware support for 32- and 64-bit integer addition and subtraction, leading to high throughput for these operations. DPUs don't natively support 32- and 64-bit multiplication and division and floating point operations. These operations need to be emulated by the UPMEM runtime, leading to much lower throughput.
+DPUs provide native hardware support for 32- and 64-bit integer addition and subtraction, leading to high throughput for these operations. DPUs don't natively support 32- and 64-bit multiplication and division and floating point operations. These operations need to be emulated by the UPMEM runtime, leading to much lower throughput. This is a clear indicator that developers must avoid costly floating point operations, and use integer division and multiplication sparingly.
+
+
+
+
+
+
+
 
 
 ## Task 4 Vector Reduction
 
+This task explores intra-DPU synchronization primitives by implementing parallel vector reduction across multiple tasklets. The goal is to compare four synchronization strategies and identify which approach best leverages the UPMEM architecture's threading model across different workload sizes.
+
 ### Implementation Details
+
+For simplicity, my reduction method computes the maximum component of a vector. This means that the vector reduction kernel builds on the MRAM and WRAM transfer patterns established in previous tasks but introduces a new final step: after each tasklet independently finds the maximum of its assigned vector partition, the partial results are merged into an overall maximum value for the DPU. This final reduction step requires synchronization to prevent race conditions and ensure correctness. The final maximum value is computed on the host CPU as the maximum of all partial DPU results.
+
+Transfers between the WRAM and MRAM  (`mram_write()`) and the DPU and host (`dpu_push_xfer`) have a minimum transfer size of 8 bytes. For smaller types (`CHAR`, `SHORT`, `INT32`) a larger chunk of 8 bytes is copied and the host extracts the valid bytes using `memcpy()`.
 
 ### Evaluation
 
+The four synchronization strategies were evaluated across three vector sizes (16 KB, 1 MB, 16 MB) distributed among 64 DPUs, with tasklet counts ranging from 2 to 24. Figure [@fig:inst_cnt_per_meth] shows the total instruction count per DPU as a function of tasklet count for each method at the three vector sizes.
+
+`SINGLE`, `TREE_HANDSHAKE`, and `MUTEX` show nearly identical instruction counts at most configurations. This convergence is surprising given their fundamentally different synchronization models. Across all vector sizes, though especially the smallest one, the `TREE_BARRIER` reduction incurs higher instruction counts, with the gap widening as tasklet count increases.
+
+![Total instruction count per DPU for four synchronization methods across three vector sizes (16 KB, 1 MB, 16 MB). Particularly at larger tasklet counts the tree barrier method has outsized synchronization costs.](./plots/t4_inst_cnt_per_method_vs_nr_tasklets.eps){#fig:inst_cnt_per_meth}
+
 ### Analysis and Observations
 
-## Citations
+At smaller vector sizes, synchronization overhead becomes proportionally more visible. The tree-based barrier method suffers from global synchronization overhead at each tree level. For example, at level 3 (stride=8), only 3 tasklets actively merge values, but all tasklets must synchronize. Handshakes on the other hand eliminate global synchronization by replacing barriers with point-to-point signaling. The single-tasklet method avoids synchronization complexity entirely: it does one `barrier_wait()` at the start, then tasklet 0 sequentially scans at most 24 partial results.
+
+<!-- ```c
+static T reduce_tree_barrier(unsigned int tasklet_id) {
+    T local = tasklet_partials[tasklet_id];
+
+    // wait for all tasklets to put their results in tasklet_partials[tasklet_id]
+    barrier_wait(&my_barrier);
+
+    // walk through levels of tasklet_partials at increasing strides, coalescing
+    // subresults at given level into single value, till only one value remains
+    for (unsigned int stride = 1; stride < NR_TASKLETS; stride <<= 1) {
+        unsigned int group = stride << 1;
+        if ((tasklet_id % group) == 0) {
+            unsigned int partner = tasklet_id + stride;
+            if (partner < NR_TASKLETS) {
+                // merge local node with partner at same level
+                T other = tasklet_partials[partner];
+                local = max_val(local, other);
+                tasklet_partials[tasklet_id] = local;
+            }
+        }
+
+        // wait for the partial results to accumulate before combining
+        barrier_wait(&my_barrier); // this line incurs large costs.
+    }
+
+    return tasklet_partials[0];
+}
+``` -->
