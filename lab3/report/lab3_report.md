@@ -88,19 +88,37 @@ As can be seen in figure [@fig:tf_bw], the broadcast method consistently provide
 
 In this scenario, the highest bandwidth is measured at DPU counts less than 5. Thereafter, the bandwidth remains at an almost constant level for the remaining DPU counts. There is very little difference between the serial and parallel transfer methods.
 
-![The overall bandwidth is plotted against the number of DPUs involved in ](./plots/t1_transfer_bandwidth.eps){#fig:tf_bw}
+![Overall bandwidth vs. number of DPUs for three transfer sizes. Top: CPU→DPU (Serial, Parallel, Broadcast). Bottom: DPU→CPU (Serial, Parallel).](./plots/t1_transfer_bandwidth.eps){#fig:tf_bw}
 
 ### Analysis and Observations
 
-- the bandwidth of distributing is way faster than collecting.
-- The parallel and the serial don't have a large difference. This is probably because the async method only makes sense in the context of multiple transfers being initiated, because the async version just calls dpu_sync after the first call, effectively making it do the same as the sync version.
+- CPU→DPU is consistently faster than DPU→CPU.
+- `SERIAL` and `PARALLEL` look similar here because the asynchrony only helps when you queue multiple outstanding transfers before waiting. In our implementation we issue one transfer and then immediately call `dpu_sync`, which collapses the overlap and makes it behave close to the synchronous version. To expose a benefit, we would need to pipeline several transfers (e.g., multiple chunks or directions) before the sync.
+- `BROADCAST` delivers the highest CPU→DPU bandwidth, indicating that fixed overheads are better amortized compared to the other transfer methods.
+<!--
+Why the curve peaks early and then declines roughly linearly (more visible at 24–48 MB):
 
+1) Latency amortization then saturation. With a few DPUs, adding more increases parallelism of DMA/transfer engines and quickly fills the shared path, so aggregate bandwidth rises. Once the shared bottleneck (host memory bandwidth, link/interface to the DPU ranks, or driver submission rate) saturates, more DPUs only add contention.
+2) Per‑DPU fixed overheads. Each additional DPU incurs a relatively constant setup/handshake cost (descriptor preparation, queueing, validation, completion handling). If the payload per DPU is fixed, total time ≈ payload_time + N × setup_time, which makes measured bandwidth (total_bytes / total_time) fall approximately linearly in N beyond the saturation point.
+3) Broadcast specifics. For broadcast, the host still processes N completions/acks even if the data payload was issued once. As N grows, these control-path costs dominate after the peak, producing the gradual decline.
+4) Host effects at scale. More DPUs imply more host-side buffers and metadata, which can increase cache/TLB pressure and reduce copy efficiency, further flattening or lowering throughput after the peak. -->
 
 ## Task 2 AXPY
 
+This task is concerned with quantifying the performance scaling of PIM threads (tasklets). To this end, the AXPY operation ($y= y + alpha ×x$) is computed in a distributed fashion on the DPUs.
+
 ### Implementation Details
 
+After placing both input vectors $x$ and $y$ in the DPUs MRAM heap, the host triggers the distributed computation. Each tasklet allocates a section of memory of fixed size in the DPUs WRAM using `mem_alloc`. Then disjoint blocks of the vectors are copied from the MRAM into the previously allocated tasklet WRAM space using `mram_read`. Special care must be taken to ensure this transfer's size is between 8 and 2048 bytes and aligned by 8 bytes. The AXPY operation is performed on the data block in WRAM and subsequently written back to MRAM using `mram_write`. To conclude, the host copies and aggregates the partial results from each DPU.
+
+Due to hardware limitations, the maximum number of tasklets per DPU is 24. The block size has to be chosen such that each tasklet's data can fit inside the WRAM, which becomes at larger numbers of tasklets. It is beneficial to maximize the block size, since this reduces the copying transfer overheads between the MRAM and WRAM. I found the highest possible block size to be 512B, using at most `2 * 24 * 512B = 24'576B` of the `64KB` of WRAM,  which left enough memory for the remaining variables.
+
 ### Evaluation
+
+In [@fig:inst_vs_tlet_cnt], the number of executed instructions per tasklet is plotted against the number of tasklets. For this experiment, two 8MB `uint32_t` input vectors were distributed among 32 DPUS.
+
+![](./plots/t2_inst_count_per_tasklet_vs_tasklet_count.eps){#fig:inst_vs_tlet_cnt}
+
 
 ### Analysis and Observations
 
