@@ -99,7 +99,7 @@ In this scenario, the highest bandwidth is measured at DPU counts less than 5. T
 Why the curve peaks early and then declines roughly linearly (more visible at 24–48 MB):
 
 1) Latency amortization then saturation. With a few DPUs, adding more increases parallelism of DMA/transfer engines and quickly fills the shared path, so aggregate bandwidth rises. Once the shared bottleneck (host memory bandwidth, link/interface to the DPU ranks, or driver submission rate) saturates, more DPUs only add contention.
-2) Per‑DPU fixed overheads. Each additional DPU incurs a relatively constant setup/handshake cost (descriptor preparation, queueing, validation, completion handling). If the payload per DPU is fixed, total time ≈ payload_time + N × setup_time, which makes measured bandwidth (total_bytes / total_time) fall approximately linearly in N beyond the saturation point.
+2) Per‑DPU fixed overheads. Each additional DPU incurs a relatively constant setup/handshake cost (descriptor preparation, queueing, validation, completion handling). If the payload per DPU is fixed, total time ~ payload_time + N × setup_time, which makes measured bandwidth (total_bytes / total_time) fall approximately linearly in N beyond the saturation point.
 3) Broadcast specifics. For broadcast, the host still processes N completions/acks even if the data payload was issued once. As N grows, these control-path costs dominate after the peak, producing the gradual decline.
 4) Host effects at scale. More DPUs imply more host-side buffers and metadata, which can increase cache/TLB pressure and reduce copy efficiency, further flattening or lowering throughput after the peak. -->
 
@@ -111,21 +111,21 @@ This task is concerned with quantifying the performance scaling of PIM threads (
 
 After placing both input vectors $x$ and $y$ in the DPUs MRAM heap, the host triggers the distributed computation. Each tasklet allocates a section of memory of fixed size in the DPUs WRAM using `mem_alloc`. Then disjoint blocks of the vectors are copied from the MRAM into the previously allocated tasklet WRAM space using `mram_read`. Special care must be taken to ensure this transfer's size is between 8 and 2048 bytes and aligned by 8 bytes. The AXPY operation is performed on the data block in WRAM and subsequently written back to MRAM using `mram_write`. To conclude, the host copies and aggregates the partial results from each DPU.
 
-Due to hardware limitations, the maximum number of tasklets per DPU is 24. The block size has to be chosen such that each tasklet's data can fit inside the WRAM, which becomes at larger numbers of tasklets. It is beneficial to maximize the block size, since this reduces the copying transfer overheads between the MRAM and WRAM. I found the highest possible block size to be 512B, using at most `2 * 24 * 512B = 24'576B` of the `64KB` of WRAM,  which left enough memory for the remaining variables.
+Due to hardware limitations, the maximum number of tasklets per DPU is 24. The allocated tasklet WRAM block's size has to be chosen such that each tasklet's data can fit inside the WRAM, which becomes an issue at larger numbers of tasklets. It is beneficial to maximize the block size, since this reduces the copying transfer overheads between the MRAM and WRAM. I found the highest possible block size to be 512B, using at most `2 * 24 * 512B = 24'576B` of the `64KB` of WRAM,  which left enough memory for the remaining variables. This configuration produces correct results for any number of tasklets and DPUs.
 
 ### Evaluation
 
-In [@fig:inst_vs_tlet_cnt], the number of executed instructions per tasklet is plotted against the number of tasklets. For this experiment, two 8MB `uint32_t` input vectors were distributed among 32 DPUS.
+In [@fig:inst_vs_tlet_cnt], the number of executed instructions per tasklet is plotted against the number of tasklets. For this experiment, two 16MB `uint32_t` input vectors were distributed among 32 DPUS. Scaling the number of tasklets reduces the instructions executed on each tasklet in a non-linear fashion.
 
-![](./plots/t2_inst_count_per_tasklet_vs_tasklet_count.eps){#fig:inst_vs_tlet_cnt}
-
+![lol](./plots/t2_inst_count_per_tasklet_vs_tasklet_count.eps){#fig:inst_vs_tlet_cnt}
 
 ### Analysis and Observations
 
-
-
+As suggested by the line plot in [@fig:inst_vs_tlet_cnt], the instruction count per tasklet doesn't decrease linearly in the number of tasklets. The execution time on the DPU increases with the number of tasklets involved in computation. This suggests that copying data between MRAM and WRAM incurs large costs, that negate the benefits of dividing the workload among tasklets.
 
 ## Task 3 Operations and Data Types
+
+The goal of this task is the quantify the computational cost of arithmetic operations on the DPUs.
 
 ### Implementation Details
 
@@ -133,7 +133,7 @@ In [@fig:inst_vs_tlet_cnt], the number of executed instructions per tasklet is p
 
 ### Analysis and Observations
 
-
+DPUs provide native hardware support for 32- and 64-bit integer addition and subtraction, leading to high throughput for these operations. DPUs don't natively support 32- and 64-bit multiplication and division and floating point operations. These operations need to be emulated by the UPMEM runtime, leading to much lower throughput.
 
 
 ## Task 4 Vector Reduction

@@ -1,6 +1,6 @@
 # build programs first with build.sh
 
-OUTFILE = "task2_out.csv"
+OUTFILE = "task2_out_64_dpus.csv"
 
 import subprocess as sp
 import re
@@ -11,8 +11,8 @@ def gen_params():
     params = []
     # dtypes = [("INT32", 4),("INT64", 8),("FLOAT", 4),("DOUBLE", 8),("CHAR", 1),("SHORT", 2)]
     inp_sizes = [8]  # in MB
-    dpu_cnts = [32]
-    tasklets_cnts = [i + 1 for i in range(0, 24, 1)]
+    dpu_cnts = [64]
+    tasklets_cnts = reversed([i for i in range(2, 24 + 2, 2)])
     dtypes = [("INT32", 4)]
 
     for inp_size_mb in inp_sizes:
@@ -20,7 +20,7 @@ def gen_params():
             for dtype in dtypes:
                 for n_tasklets in tasklets_cnts:
                     # use at least 8MB per DPU
-                    inp_size = int(n_dpus * inp_size_mb * 1024 * 1024 / dtype[1])
+                    inp_size = int(inp_size_mb * 1024 * 1024 / dtype[1])
 
                     params.append(
                         {
@@ -58,7 +58,11 @@ def run(params_list):
         result = sp.run(cmd, capture_output=True, text=True, timeout=120)
         stdout = result.stdout
 
-        assert "Outputs are equal" in stdout
+
+        if "Outputs are equal" not in stdout:
+            print(" ".join(cmd))
+            print(stdout)
+            assert False
 
         cpu_dpu_match = re.search(r"CPU-DPU Time \(ms\):\s+([\d.]+)", stdout)
         dpu_cpu_match = re.search(r"DPU-CPU Time \(ms\):\s+([\d.]+)", stdout)

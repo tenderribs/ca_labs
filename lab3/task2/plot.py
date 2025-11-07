@@ -15,7 +15,7 @@ plt.rcParams["font.size"] = 10
 import numpy as np
 
 
-CSV_FILENAME = "task_2_sweep_light.csv"
+CSV_FILENAME = "task2_out_32_64_dpus.csv"
 
 
 def load_instructions_per_tasklet(csv_path: Path) -> Tuple[np.ndarray, np.ndarray]:
