@@ -1,6 +1,6 @@
 # build programs first with build.sh
 
-OUTFILE = "task4_out.csv"
+OUTFILE = "task4_out_ba.csv"
 
 import subprocess as sp
 import re
@@ -11,7 +11,7 @@ def gen_params():
     params = []
 
     inp_sizes = [16, 1 * 1024, 16 * 1024]  # in KB (16KB, 1 MB, 16, MB)
-    dpu_cnts = [32]
+    dpu_cnts = [64]
     tasklets_cnts = [4, 8, 12, 16, 20, 24]
     # dtypes = [("INT32", 4),("INT64", 8),("FLOAT", 4),("DOUBLE", 8),("CHAR", 1),("SHORT", 2)]
     dtypes = [("INT32", 4)]
