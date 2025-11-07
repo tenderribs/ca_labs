@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 plt.rcParams["font.family"] = "serif"
 plt.rcParams["font.size"] = 10
 
-CSV_FILENAME = "task4_out.csv"
+CSV_FILENAME = "task4_out_no_barr_64dpu.csv"
 TARGET_SIZES_KB = [16.0, 1024.0, 16384.0]
 FINAL_METHODS = ["SINGLE", "TREE_BARRIER", "TREE_HANDSHAKE", "MUTEX"]
 

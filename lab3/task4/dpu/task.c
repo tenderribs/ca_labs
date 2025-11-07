@@ -93,10 +93,6 @@ static T reduce_tree_barrier(unsigned int tasklet_id) {
                 tasklet_partials[tasklet_id] = local;
             }
         }
-
-        // wait till all tasklets reach the same synchronization point
-        // before the next stride begins
-        barrier_wait(&my_barrier);
     }
 
     return tasklet_partials[0];

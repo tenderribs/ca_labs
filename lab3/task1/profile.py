@@ -5,15 +5,15 @@ progs = {
     "broadcast": "./host_code_broadcast",
 }
 
-OUTFILE = 'out.csv'
+OUTFILE = "task1_out.csv"
 
 import subprocess as sp
 import re
 import csv
 
 def gen_params():
-    input_sizes = [2, 24, 48]  # in MB
-    dpu_cnts = [1, 2, 4, 8, 16, 32, 64]
+    input_sizes = [1, 24, 48]  # in MB
+    dpu_cnts = list(range(1, 64 + 1, 1))
 
     res = []
 
@@ -28,7 +28,8 @@ def run(params_list):
     results = []
 
     for idx, params in enumerate(params_list):
-        input_size = params[0] * 131072
+        # T = int64_t
+        input_size = int(params[0] * 1024 * 1024 / 8)
         dpu_cnt = params[1]
         method = params[2]
         prog = progs[method]
@@ -43,7 +44,10 @@ def run(params_list):
         result = sp.run(cmd, capture_output=True, text=True, timeout=120)
         stdout = result.stdout
 
-        assert "Outputs are equal" in stdout
+        if "Outputs are equal" not in stdout:
+            print(" ".join(cmd))
+            print(stdout)
+            assert False
 
         cpu_dpu_match = re.search(r"CPU-DPU Time \(ms\):\s+([\d.]+)", stdout)
         dpu_cpu_match = re.search(r"DPU-CPU Time \(ms\):\s+([\d.]+)", stdout)
@@ -54,11 +58,11 @@ def run(params_list):
 
             results.append(
                 {
-                    "input_size": params[0],
+                    "input_size_mb": params[0],
                     "dpu_cnt": dpu_cnt,
                     "tf_method": method,
-                    "cpu_dpu": cpu_dpu_time,
-                    "dpu_cpu": dpu_cpu_time,
+                    "cpu_dpu_ms": cpu_dpu_time,
+                    "dpu_cpu_ms": dpu_cpu_time,
                 }
             )
 
