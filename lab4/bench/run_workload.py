@@ -54,7 +54,7 @@ def parse_stats(stdout: str) -> Dict[str, Any]:
         stats["l2c_avg_miss_latency"] = float(l2c_lat_match.group(1))
 
     # L2C Prefetches
-    l2c_pref_match = re.search(r"cpu0->cpu0_L2C PREFETCH REQUESTED: (\d+) ISSUED: (\d+) USEFUL: (\d+) USELESS: (\d+)", stdout)
+    l2c_pref_match = re.search(r"cpu0->cpu0_L2C PREFETCH REQUESTED:\s+(\d+)\s+ISSUED:\s+(\d+)\s+USEFUL:\s+(\d+)\s+USELESS:\s+(\d+)", stdout)
     if l2c_pref_match:
         stats["l2c_prefetch_requested"] = int(l2c_pref_match.group(1))
         stats["l2c_prefetch_issued"] = int(l2c_pref_match.group(2))
