@@ -1,4 +1,4 @@
-import time, os, glob, argparse, multiprocessing as mp, subprocess as sp
+import time, os, glob, argparse, multiprocessing as mp, subprocess as sp, re, csv
 from typing import List, Dict, Any
 
 warmup_cycles = 10_000_000
@@ -39,6 +39,31 @@ def distribute_tasks(executable: str) -> List[Dict[str, Any]]:
     return results
 
 
+def parse_stats(stdout: str) -> Dict[str, Any]:
+    stats = {}
+    # Cumulative IPC
+    ipc_match = re.search(r"CPU 0 cumulative IPC: ([\d\.]+) instructions: (\d+) cycles: (\d+)", stdout)
+    if ipc_match:
+        stats["ipc"] = float(ipc_match.group(1))
+        stats["instructions"] = int(ipc_match.group(2))
+        stats["cycles"] = int(ipc_match.group(3))
+
+    # L2C Miss Latency
+    l2c_lat_match = re.search(r"cpu0->cpu0_L2C AVERAGE MISS LATENCY: ([\d\.]+) cycles", stdout)
+    if l2c_lat_match:
+        stats["l2c_avg_miss_latency"] = float(l2c_lat_match.group(1))
+
+    # L2C Prefetches
+    l2c_pref_match = re.search(r"cpu0->cpu0_L2C PREFETCH REQUESTED: (\d+) ISSUED: (\d+) USEFUL: (\d+) USELESS: (\d+)", stdout)
+    if l2c_pref_match:
+        stats["l2c_prefetch_requested"] = int(l2c_pref_match.group(1))
+        stats["l2c_prefetch_issued"] = int(l2c_pref_match.group(2))
+        stats["l2c_prefetch_useful"] = int(l2c_pref_match.group(3))
+        stats["l2c_prefetch_useless"] = int(l2c_pref_match.group(4))
+
+    return stats
+
+
 def run(task_data) -> Dict[str, Any]:
     """run task as subprocess"""
     trace, executable = task_data
@@ -54,12 +79,16 @@ def run(task_data) -> Dict[str, Any]:
 
     result = sp.run(args, capture_output=True, text=True, timeout=30 * 60)
 
+    stats = parse_stats(result.stdout)
+    stats["trace"] = os.path.basename(trace)
+
     return {
         "trace": trace,
         "args": args,
         "returncode": result.returncode,
         "stdout": result.stdout,
         "stderr": result.stderr,
+        "stats": stats,
     }
 
 
@@ -85,3 +114,21 @@ if __name__ == "__main__":
             f.write("\n\n--- STDERR ---\n")
             f.write(r.get("stderr", ""))
             f.write("\n\n\n")
+
+    # save stats to csv
+    csv_file = args.output_file.replace(".log", ".csv")
+    if csv_file == args.output_file:
+        csv_file += ".csv"
+
+    fieldnames = ["trace", "ipc", "instructions", "cycles", "l2c_avg_miss_latency",
+                  "l2c_prefetch_requested", "l2c_prefetch_issued", "l2c_prefetch_useful", "l2c_prefetch_useless"]
+
+    with open(csv_file, "w", newline="") as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        writer.writeheader()
+        for r in results:
+            if "stats" in r and r["stats"]:
+                # Ensure we only write fields that exist in fieldnames
+                row = {k: r["stats"].get(k, "") for k in fieldnames}
+                writer.writerow(row)
+    print(f"Stats saved to {csv_file}")
