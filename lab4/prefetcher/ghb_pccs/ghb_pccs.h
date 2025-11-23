@@ -12,17 +12,25 @@
 #define IT_SZ_LOG2 8
 #define GHB_SZ 256 // Size of the GHB
 #define GHB_SZ_LOG2 8
+#define GHB_PTR_BITS (GHB_SZ_LOG2 + 4)
+
+// Paper states: "Index Table entries are relatively small; they contain a
+// tag (for matching) and a single pointer into the GHB (on the order of 1-2 bytes)"
+// => ghb_ptr ~ 12 bits, tag ~ 8 bits, total 20 bits = 2.5 Bytes (close enough)
+#define NUM_IT_TAG_BITS 8 // Tag bits per IP table entry
+#define IT_TAG_MASK ((1 << NUM_IT_TAG_BITS) - 1)
 
 struct GHBEntry {
   uint64_t block;    // current cache-line number
   uint32_t full_ptr; // monotonically increasing “virtual pointer” (head counter value)
   uint32_t prev;     // Pointer to previous GHB entry for same PC
-  uint64_t pc_tag;   // Tag of the PC
+  uint32_t pc_tag;   // Tag of the PC
 };
 
+// only lower bits of the ptr and tag members are used to have same restrictions as in real hardware.
 struct ITEntry {
-  uint32_t ghb_ptr; // low bits of the last GHB slot for this PC
-  uint64_t tag;     // Tag of the PC
+  uint32_t ghb_ptr; // lower 12 bits (paper adds 4 bits to ghb size) of the last GHB slot for this PC
+  uint32_t tag;     // lower 8 bit tag of the PC
   bool valid;       // Validity bit
 };
 
@@ -47,14 +55,14 @@ private:
 
   std::array<ITEntry, IT_SZ> it{};
   std::array<GHBEntry, GHB_SZ> ghb{};
-  uint32_t head_counter = 0;
+  uint32_t head_counter = 0; // 32b width allows for use of INVALID_PTR
 
-  bool pointer_valid(const uint32_t& pointer, const uint64_t& tag) const;
+  bool pointer_valid(const uint32_t& pointer, const uint32_t& tag) const;
 
   /**
    * helper to safely traverse the linked list
    */
-  uint32_t sanitize_pointer(const uint32_t& pointer, const uint64_t& tag) const;
+  uint32_t sanitize_pointer(const uint32_t& pointer, const uint32_t& tag) const;
 };
 
 #endif

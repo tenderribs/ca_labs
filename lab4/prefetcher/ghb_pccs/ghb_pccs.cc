@@ -32,7 +32,7 @@ uint32_t ghb_pccs::prefetcher_cache_operate(champsim::address addr, champsim::ad
 
   const uint64_t block = addr_value >> LOG2_BLOCK_SIZE;
   const uint32_t ip_index = static_cast<uint32_t>(ip_value) & (IT_SZ - 1);
-  const uint64_t ip_tag = static_cast<uint64_t>(ip_value >> IT_SZ_LOG2);
+  const uint32_t ip_tag = static_cast<uint32_t>((ip_value >> IT_SZ_LOG2) & IT_TAG_MASK);
 
   ITEntry& it_entry = it[ip_index];
   uint32_t prev_ptr = INVALID_PTR;
@@ -56,12 +56,13 @@ uint32_t ghb_pccs::prefetcher_cache_operate(champsim::address addr, champsim::ad
 
   // compute strides if enough data is available
   if (history_size >= 2) {
-    // int64_t because strides can be negative (for example: "for (i=N; i>0; i--)")
+    // int64_t, as strides can be negative ("for (i=N; i>0; i--)")
     const int64_t stride1 = static_cast<int64_t>(block) - static_cast<int64_t>(history[0]);
     const int64_t stride2 = static_cast<int64_t>(history[0]) - static_cast<int64_t>(history[1]);
 
     if (stride1 == stride2 && stride1 != 0) {
-      // Detected constant stride. Issue prefetches to addresses: A + l*d, A + (l+1)*d, ..., A + (l+n-1)*d
+      // Detected constant stride.
+      // Issue prefetches to addresses: A + l*d, A + (l+1)*d, ..., A + (l+n-1)*d
       for (std::size_t i = 0; i < PREFETCH_DEGREE; ++i) {
         const int64_t pf_block = static_cast<int64_t>(block) + stride1 * static_cast<int64_t>(PREFETCH_DISTANCE + i);
         if (pf_block < 0) { // physical addresses cannot be negative
@@ -74,7 +75,7 @@ uint32_t ghb_pccs::prefetcher_cache_operate(champsim::address addr, champsim::ad
     }
   }
 
-  // update the datastructures with latest miss
+  // update the IT and GHB data structures with latest miss
   const uint32_t current_ptr = head_counter;
   GHBEntry& ghb_entry = ghb[current_ptr & (GHB_SZ - 1)];
   ghb_entry.block = block;
@@ -86,12 +87,13 @@ uint32_t ghb_pccs::prefetcher_cache_operate(champsim::address addr, champsim::ad
   it_entry.tag = ip_tag;
   it_entry.valid = true;
 
-  ++head_counter;
+  // ensure restriction of head_counter to (8 + 4) bits, as in paper
+  head_counter = (head_counter + 1) & ((1 << GHB_PTR_BITS) - 1);
 
   return metadata_in;
 }
 
-bool ghb_pccs::pointer_valid(const uint32_t& pointer, const uint64_t& tag) const
+bool ghb_pccs::pointer_valid(const uint32_t& pointer, const uint32_t& tag) const
 {
   // 1. Future / Null check
   if (pointer == INVALID_PTR || pointer > head_counter)
@@ -110,4 +112,4 @@ bool ghb_pccs::pointer_valid(const uint32_t& pointer, const uint64_t& tag) const
   return entry.pc_tag == tag;
 }
 
-uint32_t ghb_pccs::sanitize_pointer(const uint32_t& pointer, const uint64_t& tag) const { return pointer_valid(pointer, tag) ? pointer : INVALID_PTR; }
+uint32_t ghb_pccs::sanitize_pointer(const uint32_t& pointer, const uint32_t& tag) const { return pointer_valid(pointer, tag) ? pointer : INVALID_PTR; }
