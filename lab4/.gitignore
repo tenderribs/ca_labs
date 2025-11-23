@@ -32,3 +32,9 @@ compile_commands.json
 **/.DS_Store
 .venv
 traces
+
+**/*.log
+**/*.csv
+
+!report/data/*.log
+!report/data/*.csv
