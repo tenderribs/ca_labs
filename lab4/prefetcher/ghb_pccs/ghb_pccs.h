@@ -22,15 +22,15 @@
 
 struct GHBEntry {
   uint64_t block;    // current cache-line number
-  uint32_t full_ptr; // monotonically increasing “virtual pointer” (head counter value)
-  uint32_t prev;     // Pointer to previous GHB entry for same PC
-  uint32_t pc_tag;   // Tag of the PC
+  uint16_t full_ptr; // monotonically increasing “virtual pointer” (head counter value)
+  uint16_t prev;     // Pointer to previous GHB entry for same PC
+  uint16_t pc_tag;   // Tag of the PC
 };
 
 // only lower bits of the ptr and tag members are used to have same restrictions as in real hardware.
 struct ITEntry {
-  uint32_t ghb_ptr; // lower 12 bits (paper adds 4 bits to ghb size) of the last GHB slot for this PC
-  uint32_t tag;     // lower 8 bit tag of the PC
+  uint16_t ghb_ptr; // lower 12 bits (paper adds 4 bits to ghb size) of the last GHB slot for this PC
+  uint16_t tag;     // lower 8 bit tag of the PC
   bool valid;       // Validity bit
 };
 
@@ -51,18 +51,18 @@ private:
   static constexpr uint32_t PREFETCH_DISTANCE = 4; // ensure the first prefetched block arrives in time
   static constexpr uint32_t PREFETCH_DEGREE = 6;
   static constexpr std::size_t HISTORY_LENGTH = 2;
-  static constexpr uint32_t INVALID_PTR = std::numeric_limits<uint32_t>::max();
+  static constexpr uint32_t INVALID_PTR = std::numeric_limits<uint16_t>::max();
 
   std::array<ITEntry, IT_SZ> it{};
   std::array<GHBEntry, GHB_SZ> ghb{};
-  uint32_t head_counter = 0; // 32b width allows for use of INVALID_PTR
+  uint16_t head_counter = 0; // 32b width allows for use of INVALID_PTR
 
-  bool pointer_valid(const uint32_t& pointer, const uint32_t& tag) const;
+  bool pointer_valid(const uint16_t& pointer, const uint16_t& tag) const;
 
   /**
    * helper to safely traverse the linked list
    */
-  uint32_t sanitize_pointer(const uint32_t& pointer, const uint32_t& tag) const;
+  uint16_t sanitize_pointer(const uint16_t& pointer, const uint16_t& tag) const;
 };
 
 #endif

@@ -31,11 +31,11 @@ uint32_t ghb_pccs::prefetcher_cache_operate(champsim::address addr, champsim::ad
   const uint64_t ip_value = ip.to<uint64_t>();
 
   const uint64_t block = addr_value >> LOG2_BLOCK_SIZE;
-  const uint32_t ip_index = static_cast<uint32_t>(ip_value) & (IT_SZ - 1);
-  const uint32_t ip_tag = static_cast<uint32_t>((ip_value >> IT_SZ_LOG2) & IT_TAG_MASK);
+  const uint16_t ip_index = static_cast<uint16_t>(ip_value) & (IT_SZ - 1);
+  const uint16_t ip_tag = static_cast<uint16_t>((ip_value >> IT_SZ_LOG2) & IT_TAG_MASK);
 
   ITEntry& it_entry = it[ip_index];
-  uint32_t prev_ptr = INVALID_PTR;
+  uint16_t prev_ptr = INVALID_PTR;
 
   if (it_entry.valid && it_entry.tag == ip_tag) {
     prev_ptr = sanitize_pointer(it_entry.ghb_ptr, ip_tag);
@@ -43,7 +43,7 @@ uint32_t ghb_pccs::prefetcher_cache_operate(champsim::address addr, champsim::ad
 
   std::array<uint64_t, HISTORY_LENGTH> history{};
   std::size_t history_size = 0;
-  uint32_t walker = prev_ptr;
+  uint16_t walker = prev_ptr;
 
   // Walk the GHB to retrieve the history of addresses for this PC
   while (history_size < HISTORY_LENGTH && pointer_valid(walker, ip_tag)) {
@@ -76,14 +76,13 @@ uint32_t ghb_pccs::prefetcher_cache_operate(champsim::address addr, champsim::ad
   }
 
   // update the IT and GHB data structures with latest miss
-  const uint32_t current_ptr = head_counter;
-  GHBEntry& ghb_entry = ghb[current_ptr & (GHB_SZ - 1)];
+  GHBEntry& ghb_entry = ghb[head_counter & (GHB_SZ - 1)];
   ghb_entry.block = block;
-  ghb_entry.full_ptr = current_ptr;
+  ghb_entry.full_ptr = head_counter;
   ghb_entry.prev = prev_ptr;
   ghb_entry.pc_tag = ip_tag;
 
-  it_entry.ghb_ptr = current_ptr;
+  it_entry.ghb_ptr = head_counter;
   it_entry.tag = ip_tag;
   it_entry.valid = true;
 
@@ -93,14 +92,16 @@ uint32_t ghb_pccs::prefetcher_cache_operate(champsim::address addr, champsim::ad
   return metadata_in;
 }
 
-bool ghb_pccs::pointer_valid(const uint32_t& pointer, const uint32_t& tag) const
+bool ghb_pccs::pointer_valid(const uint16_t& pointer, const uint16_t& tag) const
 {
-  // 1. Future / Null check
-  if (pointer == INVALID_PTR || pointer > head_counter)
+  // 1. Null check
+  if (pointer == INVALID_PTR)
     return false;
 
-  //  2. FIFO eviction check
-  if ((head_counter - pointer) > GHB_SZ)
+  // 2. FIFO eviction check (Modular arithmetic for circular buffer)
+  // Calculate distance: (head - pointer) modulo 2^GHB_PTR_BITS
+  const uint32_t diff = (head_counter - pointer) & ((1 << GHB_PTR_BITS) - 1);
+  if (diff > GHB_SZ)
     return false;
 
   // 3. Stale Data / Overwrite Check
@@ -112,4 +113,4 @@ bool ghb_pccs::pointer_valid(const uint32_t& pointer, const uint32_t& tag) const
   return entry.pc_tag == tag;
 }
 
-uint32_t ghb_pccs::sanitize_pointer(const uint32_t& pointer, const uint32_t& tag) const { return pointer_valid(pointer, tag) ? pointer : INVALID_PTR; }
+uint16_t ghb_pccs::sanitize_pointer(const uint16_t& pointer, const uint16_t& tag) const { return pointer_valid(pointer, tag) ? pointer : INVALID_PTR; }
