@@ -5,6 +5,9 @@ warmup_cycles = 10_000_000
 sim_cycles = 50_000_000
 
 
+# EXAMPLE USAGE:    python3 bench/run_workload.py -e ./bin/1C.fullBW.nopref -o 1C_fullBW_nopref
+#                   python3 bench/run_workload.py -e ./bin/1C.fullBW.ghb_pccs -o 1C_fullBW_ghb_pccs
+
 def distribute_tasks(executable: str) -> List[Dict[str, Any]]:
     """distribute traces as tasks to worker pool, SORTED by estimated difficulty"""
     all_traces = glob.glob("traces/*/*.gz")
@@ -42,19 +45,26 @@ def distribute_tasks(executable: str) -> List[Dict[str, Any]]:
 def parse_stats(stdout: str) -> Dict[str, Any]:
     stats = {}
     # Cumulative IPC
-    ipc_match = re.search(r"CPU 0 cumulative IPC: ([\d\.]+) instructions: (\d+) cycles: (\d+)", stdout)
+    ipc_match = re.search(
+        r"CPU 0 cumulative IPC: ([\d\.]+) instructions: (\d+) cycles: (\d+)", stdout
+    )
     if ipc_match:
         stats["ipc"] = float(ipc_match.group(1))
         stats["instructions"] = int(ipc_match.group(2))
         stats["cycles"] = int(ipc_match.group(3))
 
     # L2C Miss Latency
-    l2c_lat_match = re.search(r"cpu0->cpu0_L2C AVERAGE MISS LATENCY: ([\d\.]+) cycles", stdout)
+    l2c_lat_match = re.search(
+        r"cpu0->cpu0_L2C AVERAGE MISS LATENCY: ([\d\.]+) cycles", stdout
+    )
     if l2c_lat_match:
         stats["l2c_avg_miss_latency"] = float(l2c_lat_match.group(1))
 
     # L2C Prefetches
-    l2c_pref_match = re.search(r"cpu0->cpu0_L2C PREFETCH REQUESTED:\s+(\d+)\s+ISSUED:\s+(\d+)\s+USEFUL:\s+(\d+)\s+USELESS:\s+(\d+)", stdout)
+    l2c_pref_match = re.search(
+        r"cpu0->cpu0_L2C PREFETCH REQUESTED:\s+(\d+)\s+ISSUED:\s+(\d+)\s+USEFUL:\s+(\d+)\s+USELESS:\s+(\d+)",
+        stdout,
+    )
     if l2c_pref_match:
         stats["l2c_prefetch_requested"] = int(l2c_pref_match.group(1))
         stats["l2c_prefetch_issued"] = int(l2c_pref_match.group(2))
@@ -104,7 +114,7 @@ if __name__ == "__main__":
     print(f"Completed after {end - start} s")
 
     # save the outputs to a logfile
-    with open(args.output_file, "w", encoding="utf-8") as f:
+    with open(f"{args.output_file}.log", "w", encoding="utf-8") as f:
         for r in results:
             f.write(f"=== TRACE: {r['trace']} ===\n")
             f.write(f"COMMAND: { ' '.join(r['args']) }\n")
@@ -116,12 +126,19 @@ if __name__ == "__main__":
             f.write("\n\n\n")
 
     # save stats to csv
-    csv_file = args.output_file.replace(".log", ".csv")
-    if csv_file == args.output_file:
-        csv_file += ".csv"
+    csv_file = f"{args.output_file}.csv"
 
-    fieldnames = ["trace", "ipc", "instructions", "cycles", "l2c_avg_miss_latency",
-                  "l2c_prefetch_requested", "l2c_prefetch_issued", "l2c_prefetch_useful", "l2c_prefetch_useless"]
+    fieldnames = [
+        "trace",
+        "ipc",
+        "instructions",
+        "cycles",
+        "l2c_avg_miss_latency",
+        "l2c_prefetch_requested",
+        "l2c_prefetch_issued",
+        "l2c_prefetch_useful",
+        "l2c_prefetch_useless",
+    ]
 
     with open(csv_file, "w", newline="") as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
