@@ -5,8 +5,9 @@ warmup_cycles = 10_000_000
 sim_cycles = 50_000_000
 
 
-# EXAMPLE USAGE:    python3 bench/run_workload.py -e ./bin/1C.fullBW.nopref -o 1C_fullBW_nopref
-#                   python3 bench/run_workload.py -e ./bin/1C.fullBW.ghb_pccs -o 1C_fullBW_ghb_pccs
+# EXAMPLE USAGE:    python3 report/run_workload.py -e ./bin/1C.fullBW.nopref -o 1C_fullBW_nopref
+#                   python3 report/run_workload.py -e ./bin/1C.fullBW.ghb_pccs -o 1C_fullBW_ghb_pccs
+
 
 def distribute_tasks(executable: str) -> List[Dict[str, Any]]:
     """distribute traces as tasks to worker pool, SORTED by estimated difficulty"""
