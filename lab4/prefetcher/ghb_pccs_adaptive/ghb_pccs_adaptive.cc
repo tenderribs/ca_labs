@@ -1,7 +1,8 @@
-#include "cache.h" // Needed for intern_->sim_stats
 #include "ghb_pccs_adaptive.h"
 
 #include <limits>
+
+#include "cache.h" // Needed for intern_->sim_stats
 
 void ghb_pccs_adaptive::prefetcher_initialize()
 {
@@ -28,14 +29,11 @@ void ghb_pccs_adaptive::prefetcher_initialize()
 }
 
 uint32_t ghb_pccs_adaptive::prefetcher_cache_operate(champsim::address addr, champsim::address ip, uint8_t cache_hit, bool useful_prefetch, access_type type,
-                                            uint32_t metadata_in)
+                                                     uint32_t metadata_in)
 {
-  // Filter out prefetch requests to avoid pollution
-  if (type == access_type::PREFETCH)
-    return metadata_in;
-
   (void)cache_hit;
   (void)useful_prefetch;
+  (void)type;
 
   const uint64_t addr_value = addr.to<uint64_t>();
   const uint64_t ip_value = ip.to<uint64_t>();
@@ -108,42 +106,27 @@ void ghb_pccs_adaptive::prefetcher_cycle_operate()
   epoch_cycle_count++;
 
   if (epoch_cycle_count >= EPOCH_LENGTH) {
-    // End of epoch
-
-    // 1. Get stats
+    // Update Stats
     uint64_t current_pf_issued = intern_->sim_stats.pf_issued;
     uint64_t current_pf_useful = intern_->sim_stats.pf_useful;
 
     uint64_t epoch_issued = current_pf_issued - last_pf_issued;
     uint64_t epoch_useful = current_pf_useful - last_pf_useful;
 
-    // Update last stats
     last_pf_issued = current_pf_issued;
     last_pf_useful = current_pf_useful;
 
-    // 2. Compute accuracy
-    double accuracy = 0.0;
-    if (epoch_issued > 0) {
-      accuracy = (double)epoch_useful / (double)epoch_issued;
-    }
+    if (epoch_issued == 0) // no updates to make
+      return;
 
-    // 3. Get Bandwidth
-    // get_dram_bw() returns 4-bit quantized normalized utilization.
-    // 0-15.
-    // 15 means ~100%.
-    // The table uses percentages: 25%, 75%.
-    // 25% of 16 is 4.
-    // 75% of 16 is 12.
-    // So:
-    // < 25%  => bw < 4
-    // 25% <= bw < 75% => 4 <= bw < 12
-    // >= 75% => bw >= 12
+    // Compute accuracy
+    double accuracy = (double)epoch_useful / (double)epoch_issued;
 
+    // Get Bandwidth
     uint8_t bw_quantized = get_dram_bw();
 
-    // 4. Adjust degree
+    // Adjust degree
     int adjustment = 0;
-
     if (bw_quantized >= 12) { // >= 75%
       if (accuracy >= 0.90) {
         adjustment = 0;
@@ -172,8 +155,10 @@ void ghb_pccs_adaptive::prefetcher_cycle_operate()
 
     // Apply adjustment with clamping
     int new_degree = (int)current_prefetch_degree + adjustment;
-    if (new_degree > (int)MAX_DEGREE) new_degree = MAX_DEGREE;
-    if (new_degree < (int)MIN_DEGREE) new_degree = MIN_DEGREE;
+    if (new_degree > (int)MAX_DEGREE)
+      new_degree = MAX_DEGREE;
+    if (new_degree < (int)MIN_DEGREE)
+      new_degree = MIN_DEGREE;
 
     current_prefetch_degree = (uint32_t)new_degree;
 
