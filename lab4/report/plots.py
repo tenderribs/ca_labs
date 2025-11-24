@@ -19,13 +19,6 @@ def load_data(path: str) -> pd.DataFrame:
     return df
 
 
-def merge_on_trace(df1: pd.DataFrame, df2: pd.DataFrame) -> pd.DataFrame:
-    merged = df1[["trace", "ipc"]].merge(
-        df2[["trace", "ipc"]], on="trace", suffixes=("_1", "_2")
-    )
-    return merged
-
-
 def show_pretty_bars(bars_handle):
     # Add IPC values on top of each bar
     for bar in bars_handle:
@@ -51,21 +44,26 @@ def task_0():
     show_pretty_bars(bars)
 
 
-def rel_speedup(path1: str, path2: str, plot: bool) -> pd.DataFrame:
+def rel_speedup(with_pref: str, no_pref: str, plot: bool) -> pd.DataFrame:
     """Plots for GHB-based PC/CS prefetcher"""
-    merged: pd.DataFrame = merge_on_trace(load_data(path1), load_data(path2))
+    df_with_pref, df_no_pref = load_data(with_pref), load_data(no_pref)
+
+    merged = df_with_pref[["trace", "ipc"]].merge(
+        df_no_pref[["trace", "ipc"]], on="trace", suffixes=("_w_pref", "_no_pref")
+    )
 
     # Calculate speedup
-    merged["speedup"] = merged["ipc_1"] / merged["ipc_2"]
+    merged["speedup"] = merged["ipc_w_pref"] / merged["ipc_no_pref"]
 
     # Add row containing geomean of speedup
     geomean = np.exp(np.log(merged["speedup"]).mean())
     geomean_row = pd.DataFrame({"trace": ["GEOMEAN"], "speedup": [geomean]})
     merged = pd.concat([merged, geomean_row], ignore_index=True)
 
-    bars = plt.bar(merged["trace"], merged["speedup"])
+    print(f"geomean {geomean}")
 
     if plot:
+        bars = plt.bar(merged["trace"], merged["speedup"])
         show_pretty_bars(bars)
 
     return merged
@@ -76,26 +74,58 @@ def compare_rel_speedups(df_full, df_limited):
         df_limited[["trace", "speedup"]], on="trace", suffixes=("_full", "_limited")
     )
 
-    print(merged)
-    # bars = plt.bar(merged["trace"], merged["speedup"])
+    x = np.arange(len(merged["trace"]))
+    width = 0.35
+
+    plt.figure(figsize=(10, 4))
+    bars_full = plt.bar(x - width / 2, merged["speedup_full"], width, label="Full BW")
+    bars_limited = plt.bar(
+        x + width / 2, merged["speedup_limited"], width, label="Limited BW"
+    )
+
+    plt.xticks(x, merged["trace"], rotation=45, ha="right")
+    plt.ylabel("Relative speedup")
+    plt.legend()
+    plt.tight_layout()
+
+    return merged
 
 
 if __name__ == "__main__":
-    # task_0()  # task 0  No prefetcher
+    # ======= Task 1 =======
+    # No prefetchers
+    # task_0()
 
-    # print("FULL BW")
-    full_bw = rel_speedup(  # task 1 Full BW
-        "report/data/task0_1C_fullBW_nopref.csv",
-        "report/data/task1_1C_fullBW_ghb_pccs_fixed_pd_20b_ip_tag.csv",
+    # ======= Task 1 =======
+    # Full BW
+    fixed_full_bw = rel_speedup(
+        with_pref="report/data/task1_1C_fullBW_ghb_pccs_fixed_pd_20b_ip_tag.csv",
+        no_pref="report/data/task0_1C_fullBW_nopref.csv",
         plot=False,
     )
 
-    # print("Reduced BW")
-    limited_bw = rel_speedup(  # task 2 Limited BW
-        "report/data/task2_1C_limitBW_nopref.csv",
-        "report/data/task2_1C_limitBW_ghb_pccs_fixed_pd.csv",
+    # ======= Task 2 =======
+    # Limited BW
+    fixed_limited_bw = rel_speedup(
+        with_pref="report/data/task2_1C_limitBW_ghb_pccs_fixed_pd.csv",
+        no_pref="report/data/task2_1C_limitBW_nopref.csv",
         plot=False,
     )
 
-    # print("Reduced BW")
-    compare_rel_speedups(full_bw, limited_bw)
+    # # Full BW vs Limited BW
+    # compare_rel_speedups(df_full=fixed_full_bw, df_limited=fixed_limited_bw)
+
+    # ======= Task 3 =======
+    adaptive_full_bw = rel_speedup(
+        with_pref="report/data/task3_1C_fullBW_ghb_pccs_adaptive_pd.csv",
+        no_pref="report/data/task0_1C_fullBW_nopref.csv",
+        plot=False,
+    )
+
+    adaptive_limited_bw = rel_speedup(
+        with_pref="report/data/task3_1C_limitBW_ghb_pccs_adaptive_pd.csv",
+        no_pref="report/data/task2_1C_limitBW_nopref.csv",
+        plot=False,
+    )
+
+    plt.show()
