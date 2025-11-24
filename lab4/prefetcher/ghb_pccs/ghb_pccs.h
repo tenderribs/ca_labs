@@ -1,12 +1,22 @@
 #ifndef PREFETCHER_GHB_PCCS_H
 #define PREFETCHER_GHB_PCCS_H
 
+#ifdef ADAPTIVE_PF_DEG
+#pragma message(">>>>> INFO: Using ADAPTIVE prefetch degree <<<<<")
+#else
+#pragma message(">>>>> INFO: Using FIXED prefetch degree <<<<<")
+#endif
+
 #include <array>
 #include <cstdint>
 #include <limits>
 
 #include "champsim.h"
 #include "modules.h"
+
+#ifdef ADAPTIVE_PF_DEG
+#include "dpc_api.h"
+#endif
 
 #define IT_SZ 256 // Size of the index table
 #define IT_SZ_LOG2 8
@@ -44,18 +54,32 @@ public:
   uint32_t prefetcher_cache_operate(champsim::address addr, champsim::address ip, uint8_t cache_hit, bool useful_prefetch, access_type type,
                                     uint32_t metadata_in);
   // uint32_t prefetcher_cache_fill(champsim::address addr, long set, long way, uint8_t prefetch, champsim::address evicted_addr, uint32_t metadata_in);
-  // void prefetcher_cycle_operate() {}
+#ifdef ADAPTIVE_PF_DEG
+  void prefetcher_cycle_operate();
+#endif
   // void prefetcher_final_stats() {}
 
 private:
   static constexpr uint32_t PREFETCH_DISTANCE = 4; // ensure the first prefetched block arrives in time
-  static constexpr uint32_t PREFETCH_DEGREE = 6;
   static constexpr std::size_t HISTORY_LENGTH = 2;
   static constexpr uint32_t INVALID_PTR = std::numeric_limits<uint16_t>::max();
 
   std::array<ITEntry, IT_SZ> it{};
   std::array<GHBEntry, GHB_SZ> ghb{};
   uint16_t head_counter = 0; // 32b width allows for use of INVALID_PTR
+
+#ifdef ADAPTIVE_PF_DEG
+  // Adaptive prefetching constants
+  static constexpr uint64_t EPOCH_LENGTH = 1000;
+  static constexpr uint32_t MAX_DEGREE = 6;
+  static constexpr uint32_t MIN_DEGREE = 1;
+
+  // Adaptive prefetching state
+  uint64_t epoch_cycle_count = 0;
+  uint64_t last_pf_issued = 0;
+  uint64_t last_pf_useful = 0;
+  uint32_t current_prefetch_degree = MAX_DEGREE;
+#endif
 
   bool pointer_valid(const uint16_t& pointer, const uint16_t& tag) const;
 

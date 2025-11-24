@@ -2,6 +2,8 @@
 
 #include <limits>
 
+#include "cache.h" // Needed for intern_->sim_stats
+
 void ghb_pccs::prefetcher_initialize()
 {
   head_counter = 0;
@@ -18,6 +20,14 @@ void ghb_pccs::prefetcher_initialize()
     entry.prev = INVALID_PTR;
     entry.pc_tag = 0;
   }
+
+#ifdef ADAPTIVE_PF_DEG
+  // Initialize adaptive state
+  epoch_cycle_count = 0;
+  last_pf_issued = 0;
+  last_pf_useful = 0;
+  current_prefetch_degree = MAX_DEGREE; // Start with max degree
+#endif
 }
 
 uint32_t ghb_pccs::prefetcher_cache_operate(champsim::address addr, champsim::address ip, uint8_t cache_hit, bool useful_prefetch, access_type type,
@@ -62,8 +72,12 @@ uint32_t ghb_pccs::prefetcher_cache_operate(champsim::address addr, champsim::ad
 
     if (stride1 == stride2 && stride1 != 0) {
       // Detected constant stride.
-      // Issue prefetches to addresses: A + l*d, A + (l+1)*d, ..., A + (l+n-1)*d
-      for (std::size_t i = 0; i < PREFETCH_DEGREE; ++i) {
+#ifdef ADAPTIVE_PF_DEG // compile with `make CPPFLAGS=-DADAPTIVE_PF_DEG -j`
+      for (std::size_t i = 0; i < current_prefetch_degree; ++i) {
+#else
+      for (std::size_t i = 0; i < MAX_DEGREE; ++i) {
+#endif
+        // Issue prefetches to addresses: A + l*d, A + (l+1)*d, ..., A + (l+n-1)*d
         const int64_t pf_block = static_cast<int64_t>(block) + stride1 * static_cast<int64_t>(PREFETCH_DISTANCE + i);
         if (pf_block < 0) { // physical addresses cannot be negative
           break;
@@ -91,6 +105,74 @@ uint32_t ghb_pccs::prefetcher_cache_operate(champsim::address addr, champsim::ad
 
   return metadata_in;
 }
+
+#ifdef ADAPTIVE_PF_DEG
+void ghb_pccs::prefetcher_cycle_operate()
+{
+  epoch_cycle_count++;
+
+  if (epoch_cycle_count >= EPOCH_LENGTH) {
+    // Update Stats
+    uint64_t current_pf_issued = intern_->sim_stats.pf_issued;
+    uint64_t current_pf_useful = intern_->sim_stats.pf_useful;
+
+    uint64_t epoch_issued = current_pf_issued - last_pf_issued;
+    uint64_t epoch_useful = current_pf_useful - last_pf_useful;
+
+    last_pf_issued = current_pf_issued;
+    last_pf_useful = current_pf_useful;
+
+    if (epoch_issued == 0) // no updates to make
+      return;
+
+    // Compute accuracy
+    double accuracy = (double)epoch_useful / (double)epoch_issued;
+
+    // Get Bandwidth
+    uint8_t bw_quantized = get_dram_bw();
+
+    // Adjust degree
+    int adjustment = 0;
+    if (bw_quantized >= 12) { // >= 75%
+      if (accuracy >= 0.90) {
+        adjustment = 0;
+      } else if (accuracy >= 0.50) {
+        adjustment = -1;
+      } else {
+        adjustment = -2;
+      }
+    } else if (bw_quantized >= 4) { // 25% <= bw < 75%
+      if (accuracy >= 0.90) {
+        adjustment = 1;
+      } else if (accuracy >= 0.50) {
+        adjustment = 0;
+      } else {
+        adjustment = -1;
+      }
+    } else { // < 25%
+      if (accuracy >= 0.90) {
+        adjustment = 2;
+      } else if (accuracy >= 0.50) {
+        adjustment = 1;
+      } else {
+        adjustment = 0;
+      }
+    }
+
+    // Apply adjustment with clamping
+    int new_degree = (int)current_prefetch_degree + adjustment;
+    if (new_degree > (int)MAX_DEGREE)
+      new_degree = MAX_DEGREE;
+    if (new_degree < (int)MIN_DEGREE)
+      new_degree = MIN_DEGREE;
+
+    current_prefetch_degree = (uint32_t)new_degree;
+
+    // Reset cycle count
+    epoch_cycle_count = 0;
+  }
+}
+#endif
 
 bool ghb_pccs::pointer_valid(const uint16_t& pointer, const uint16_t& tag) const
 {
