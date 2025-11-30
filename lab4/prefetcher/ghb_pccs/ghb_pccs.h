@@ -68,10 +68,10 @@ private:
   std::array<GHBEntry, GHB_SZ> ghb{};
   uint16_t head_counter = 0; // 32b width allows for use of INVALID_PTR
 
+  static constexpr uint32_t MAX_DEGREE = 6;
 #ifdef ADAPTIVE_PF_DEG
   // Adaptive prefetching constants
   static constexpr uint64_t EPOCH_LENGTH = 1000;
-  static constexpr uint32_t MAX_DEGREE = 6;
   static constexpr uint32_t MIN_DEGREE = 1;
 
   // Adaptive prefetching state
