@@ -17,7 +17,7 @@ uint32_t hybrid::prefetcher_cache_operate(champsim::address addr, champsim::addr
 
   // Tournament Logic
   // Priority 1: GHB
-  if (ghb_pref.is_confident) {
+  if (ghb_pref.is_confident) { // if a stride was detected
     ghb_pref.issue_pending_prefetches(metadata_in);
     ghb_prefetches++;
   }

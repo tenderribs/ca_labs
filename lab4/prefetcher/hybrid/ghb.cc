@@ -1,10 +1,10 @@
-#include "ghb_pccs.h"
+#include "ghb.h"
 
 #include <limits>
 
 #include "cache.h" // Needed for intern_->sim_stats
 
-void ghb_pccs::prefetcher_initialize()
+void ghb::prefetcher_initialize()
 {
   head_counter = 0;
 
@@ -21,16 +21,14 @@ void ghb_pccs::prefetcher_initialize()
     entry.pc_tag = 0;
   }
 
-#ifdef ADAPTIVE_PF_DEG
   // Initialize adaptive state
   epoch_cycle_count = 0;
   last_pf_issued = 0;
   last_pf_useful = 0;
   current_prefetch_degree = MAX_DEGREE; // Start with max degree
-#endif
 }
 
-uint32_t ghb_pccs::prefetcher_cache_operate(champsim::address addr, champsim::address ip, uint8_t cache_hit, bool useful_prefetch, access_type type,
+uint32_t ghb::prefetcher_cache_operate(champsim::address addr, champsim::address ip, uint8_t cache_hit, bool useful_prefetch, access_type type,
                                             uint32_t metadata_in)
 {
   (void)cache_hit;
@@ -46,6 +44,10 @@ uint32_t ghb_pccs::prefetcher_cache_operate(champsim::address addr, champsim::ad
 
   ITEntry& it_entry = it[ip_index];
   uint16_t prev_ptr = INVALID_PTR;
+
+  // Reset state
+  pending_prefetches.clear();
+  is_confident = false;
 
   if (it_entry.valid && it_entry.tag == ip_tag) {
     prev_ptr = sanitize_pointer(it_entry.ghb_ptr, ip_tag);
@@ -72,11 +74,9 @@ uint32_t ghb_pccs::prefetcher_cache_operate(champsim::address addr, champsim::ad
 
     if (stride1 == stride2 && stride1 != 0) {
       // Detected constant stride.
-#ifdef ADAPTIVE_PF_DEG // compile with `make CPPFLAGS=-DADAPTIVE_PF_DEG -j`
+      is_confident = true;
+
       for (std::size_t i = 0; i < current_prefetch_degree; ++i) {
-#else
-      for (std::size_t i = 0; i < MAX_DEGREE; ++i) {
-#endif
         // Issue prefetches to addresses: A + l*d, A + (l+1)*d, ..., A + (l+n-1)*d
         const int64_t pf_block = static_cast<int64_t>(block) + stride1 * static_cast<int64_t>(PREFETCH_DISTANCE + i);
         if (pf_block < 0) { // physical addresses cannot be negative
@@ -84,7 +84,12 @@ uint32_t ghb_pccs::prefetcher_cache_operate(champsim::address addr, champsim::ad
         }
 
         const uint64_t pf_addr = static_cast<uint64_t>(pf_block) << LOG2_BLOCK_SIZE;
-        prefetch_line(champsim::address{pf_addr}, true, 0);
+
+        if (prefetch_enabled) {
+          prefetch_line(champsim::address{pf_addr}, true, 0);
+        } else {
+          pending_prefetches.push_back(champsim::address{pf_addr});
+        }
       }
     }
   }
@@ -106,8 +111,14 @@ uint32_t ghb_pccs::prefetcher_cache_operate(champsim::address addr, champsim::ad
   return metadata_in;
 }
 
-#ifdef ADAPTIVE_PF_DEG
-void ghb_pccs::prefetcher_cycle_operate()
+void ghb::issue_pending_prefetches(uint32_t metadata_in)
+{
+  for (const auto& addr : pending_prefetches) {
+    prefetch_line(addr, true, metadata_in);
+  }
+}
+
+void ghb::prefetcher_cycle_operate()
 {
   epoch_cycle_count++;
 
@@ -172,9 +183,8 @@ void ghb_pccs::prefetcher_cycle_operate()
     epoch_cycle_count = 0;
   }
 }
-#endif
 
-bool ghb_pccs::pointer_valid(const uint16_t& pointer, const uint16_t& tag) const
+bool ghb::pointer_valid(const uint16_t& pointer, const uint16_t& tag) const
 {
   // 1. Null check
   if (pointer == INVALID_PTR)
@@ -195,4 +205,4 @@ bool ghb_pccs::pointer_valid(const uint16_t& pointer, const uint16_t& tag) const
   return entry.pc_tag == tag;
 }
 
-uint16_t ghb_pccs::sanitize_pointer(const uint16_t& pointer, const uint16_t& tag) const { return pointer_valid(pointer, tag) ? pointer : INVALID_PTR; }
+uint16_t ghb::sanitize_pointer(const uint16_t& pointer, const uint16_t& tag) const { return pointer_valid(pointer, tag) ? pointer : INVALID_PTR; }

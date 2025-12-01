@@ -1,11 +1,5 @@
-#ifndef PREFETCHER_GHB_PCCS_H
-#define PREFETCHER_GHB_PCCS_H
-
-#ifdef ADAPTIVE_PF_DEG
-#pragma message(">>>>> INFO: Using ADAPTIVE prefetch degree <<<<<")
-#else
-#pragma message(">>>>> INFO: Using FIXED prefetch degree <<<<<")
-#endif
+#ifndef PREFETCHER_GHB_H
+#define PREFETCHER_GHB_H
 
 #include <array>
 #include <cstdint>
@@ -14,9 +8,7 @@
 #include "champsim.h"
 #include "modules.h"
 
-#ifdef ADAPTIVE_PF_DEG
 #include "dpc_api.h"
-#endif
 
 #define IT_SZ 256 // Size of the index table
 #define IT_SZ_LOG2 8
@@ -44,19 +36,22 @@ struct ITEntry {
   bool valid;       // Validity bit
 };
 
-class ghb_pccs : public champsim::modules::prefetcher
+class ghb : public champsim::modules::prefetcher
 {
 public:
   using prefetcher::prefetcher;
+
+  bool prefetch_enabled = true;
+  bool is_confident = false;
+  std::vector<champsim::address> pending_prefetches;
+  void issue_pending_prefetches(uint32_t metadata_in);
 
   void prefetcher_initialize();
   // void prefetcher_branch_operate(champsim::address ip, uint8_t branch_type, champsim::address branch_target) {}
   uint32_t prefetcher_cache_operate(champsim::address addr, champsim::address ip, uint8_t cache_hit, bool useful_prefetch, access_type type,
                                     uint32_t metadata_in);
   // uint32_t prefetcher_cache_fill(champsim::address addr, long set, long way, uint8_t prefetch, champsim::address evicted_addr, uint32_t metadata_in);
-#ifdef ADAPTIVE_PF_DEG
   void prefetcher_cycle_operate();
-#endif
   // void prefetcher_final_stats() {}
 
 private:
@@ -69,7 +64,6 @@ private:
   uint16_t head_counter = 0; // 32b width allows for use of INVALID_PTR
 
   static constexpr uint32_t MAX_DEGREE = 6;
-#ifdef ADAPTIVE_PF_DEG
   // Adaptive prefetching constants
   static constexpr uint64_t EPOCH_LENGTH = 1000;
   static constexpr uint32_t MIN_DEGREE = 1;
@@ -79,7 +73,6 @@ private:
   uint64_t last_pf_issued = 0;
   uint64_t last_pf_useful = 0;
   uint32_t current_prefetch_degree = MAX_DEGREE;
-#endif
 
   bool pointer_valid(const uint16_t& pointer, const uint16_t& tag) const;
 

@@ -5,7 +5,7 @@
 
 #include "bop.h"
 #include "champsim.h"
-#include "ghb_pccs.h"
+#include "ghb.h"
 #include "modules.h"
 
 class hybrid : public champsim::modules::prefetcher
@@ -13,7 +13,7 @@ class hybrid : public champsim::modules::prefetcher
 #define ADAPTIVE_PF_DEG // ensure GHB PC/CS has system feedback
 private:
   bop bop_pref;
-  ghb_pccs ghb_pref;
+  ghb ghb_pref;
 
 public:
   using prefetcher::prefetcher;

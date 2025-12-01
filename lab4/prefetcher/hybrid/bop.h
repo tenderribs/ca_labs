@@ -1,5 +1,5 @@
-#ifndef PREFETCHER_ABOP_H
-#define PREFETCHER_ABOP_H
+#ifndef PREFETCHER_BOP_H
+#define PREFETCHER_BOP_H
 
 #include <array>
 #include <cstdint>
