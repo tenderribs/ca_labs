@@ -1,5 +1,7 @@
 #include "hybrid.h"
 
+#include <iostream>
+
 #include "dpc_api.h" // For get_dram_bw()
 
 uint32_t hybrid::prefetcher_cache_operate(champsim::address addr, champsim::address ip, uint8_t cache_hit, bool useful_prefetch, access_type type,
@@ -37,4 +39,10 @@ uint32_t hybrid::prefetcher_cache_operate(champsim::address addr, champsim::addr
 uint32_t hybrid::prefetcher_cache_fill(champsim::address addr, long set, long way, uint8_t prefetch, champsim::address evicted_addr, uint32_t metadata_in)
 {
   return metadata_in;
+}
+
+void hybrid::prefetcher_final_stats()
+{
+  std::cout << "GHB Prefetches: " << ghb_prefetches << std::endl;
+  std::cout << "BOP Prefetches: " << bop_prefetches << std::endl;
 }
