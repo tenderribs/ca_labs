@@ -34,6 +34,7 @@ struct ITEntry {
   uint16_t ghb_ptr; // lower 12 bits (paper adds 4 bits to ghb size) of the last GHB slot for this PC
   uint16_t tag;     // lower 8 bit tag of the PC
   bool valid;       // Validity bit
+  uint8_t confidence; // how often this stride has been seen
 };
 
 class ghb : public champsim::modules::prefetcher

@@ -12,6 +12,7 @@ void ghb::prefetcher_initialize()
     entry.ghb_ptr = INVALID_PTR;
     entry.tag = 0;
     entry.valid = false;
+    entry.confidence = 0;
   }
 
   for (auto& entry : ghb) {
@@ -74,8 +75,12 @@ uint32_t ghb::prefetcher_cache_operate(champsim::address addr, champsim::address
 
     if (stride1 == stride2 && stride1 != 0) {
       // Detected constant stride.
-      is_confident = true;
+      if (it_entry.confidence < 3) it_entry.confidence++;
 
+      // Only declare confidence if we have seen this stride pattern consistently
+      if (it_entry.confidence >= 2) {
+        is_confident = true;
+      }
       for (std::size_t i = 0; i < current_prefetch_degree; ++i) {
         // Issue prefetches to addresses: A + l*d, A + (l+1)*d, ..., A + (l+n-1)*d
         const int64_t pf_block = static_cast<int64_t>(block) + stride1 * static_cast<int64_t>(PREFETCH_DISTANCE + i);
@@ -91,6 +96,8 @@ uint32_t ghb::prefetcher_cache_operate(champsim::address addr, champsim::address
           pending_prefetches.push_back(champsim::address{pf_addr});
         }
       }
+    } else {
+      it_entry.confidence = 0;
     }
   }
 

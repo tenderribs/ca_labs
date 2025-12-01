@@ -16,21 +16,39 @@ uint32_t hybrid::prefetcher_cache_operate(champsim::address addr, champsim::addr
   bop_pref.prefetcher_cache_operate(addr, ip, cache_hit, useful_prefetch, type, metadata_in);
 
   // Tournament Logic
-  // Priority 1: GHB
-  if (ghb_pref.is_confident) { // if a stride was detected
+
+  // 1. Gather Metrics
+  bool ghb_confident = ghb_pref.is_confident;
+  int bop_score = bop_pref.get_best_score();
+  uint8_t bw = get_dram_bw(); // 0 (empty) to 16 (full)
+
+  // 2. GHB is high precision, so we prioritize it.
+  if (ghb_confident) {
     ghb_pref.issue_pending_prefetches(metadata_in);
     ghb_prefetches++;
   }
-  // Priority 2: BOP
-  else {
-    int bop_score = bop_pref.get_best_score();
-    uint8_t bw = get_dram_bw();
 
-    // Check if BOP score is high enough and bandwidth is sufficient
-    if (bop_score > 1 && bw < 12) { // 1 is BAD_SCORE in bop.h
-      bop_pref.issue_prefetch(addr, cache_hit, metadata_in);
-      bop_prefetches++;
-    }
+  // 3. BOP Decision (The Global Observer)
+  // BOP is allowed if it has a high enough score relative to system congestion.
+
+  int bop_threshold = 1; // Base threshold (must be > BAD_SCORE=1)
+  if (bw >= 13) {
+      bop_threshold = 20;
+  } else if (bw >= 9) {
+      bop_threshold = 5;
+  } else {
+      bop_threshold = 1;
+  }
+
+  // If GHB is also firing, we should be more careful with BOP to avoid flooding
+  if (ghb_confident) {
+      bop_threshold += 10; // Significant penalty if GHB is already using BW
+  }
+
+  // Issue BOP if score meets threshold
+  if (bop_score > bop_threshold) {
+    bop_pref.issue_prefetch(addr, cache_hit, metadata_in);
+    bop_prefetches++;
   }
 
   return metadata_in;
