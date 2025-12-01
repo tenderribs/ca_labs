@@ -42,12 +42,18 @@ struct ITEntry {
   uint16_t ghb_ptr; // lower 12 bits (paper adds 4 bits to ghb size) of the last GHB slot for this PC
   uint16_t tag;     // lower 8 bit tag of the PC
   bool valid;       // Validity bit
+  uint8_t confidence = 0;
 };
 
 class ghb_pccs : public champsim::modules::prefetcher
 {
 public:
   using prefetcher::prefetcher;
+
+  bool prefetch_enabled = true;
+  bool is_confident = false;
+  std::vector<champsim::address> pending_prefetches;
+  void issue_pending_prefetches(uint32_t metadata_in);
 
   void prefetcher_initialize();
   // void prefetcher_branch_operate(champsim::address ip, uint8_t branch_type, champsim::address branch_target) {}

@@ -168,7 +168,7 @@ if __name__ == "__main__":
     # fixed_limited_bw = rel_speedup(
     #     with_pref="report/data/task2_1C_limitBW_ghb_pccs_fixed_pd.csv",
     #     no_pref="report/data/task2_1C_limitBW_nopref.csv",
-    #     plot=True,
+    #     plot=False,
     # )
 
     # # # Full BW vs Limited BW
@@ -178,13 +178,22 @@ if __name__ == "__main__":
     # adaptive_full_bw = rel_speedup(
     #     with_pref="report/data/task3_1C_fullBW_ghb_pccs_adaptive_pd.csv",
     #     no_pref="report/data/task0_1C_fullBW_nopref.csv",
-    #     plot=True,
+    #     plot=False,
     # )
 
+    # ======= Task 4 =======
+    print("ADAPTIVE")
     adaptive_limited_bw = rel_speedup(
-        with_pref="report/data/task3_1C_limitBW_ghb_pccs_adaptive_pd.csv",
+        with_pref="report/data/task4_1C_limitBW_abop.csv",
         no_pref="report/data/task2_1C_limitBW_nopref.csv",
-        plot=True,
+        plot=False,
     )
+
+    # print("FIXED")
+    # adaptive_limited_bw = rel_speedup(
+    #     with_pref="report/data/task4_1C_limitBW_bop.csv",
+    #     no_pref="report/data/task2_1C_limitBW_nopref.csv",
+    #     plot=True,
+    # )
 
     plt.show()

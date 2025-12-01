@@ -12,6 +12,7 @@ void ghb_pccs::prefetcher_initialize()
     entry.ghb_ptr = INVALID_PTR;
     entry.tag = 0;
     entry.valid = false;
+    entry.confidence = 0;
   }
 
   for (auto& entry : ghb) {
@@ -47,6 +48,10 @@ uint32_t ghb_pccs::prefetcher_cache_operate(champsim::address addr, champsim::ad
   ITEntry& it_entry = it[ip_index];
   uint16_t prev_ptr = INVALID_PTR;
 
+  // Reset state
+  pending_prefetches.clear();
+  is_confident = false;
+
   if (it_entry.valid && it_entry.tag == ip_tag) {
     prev_ptr = sanitize_pointer(it_entry.ghb_ptr, ip_tag);
   }
@@ -72,6 +77,10 @@ uint32_t ghb_pccs::prefetcher_cache_operate(champsim::address addr, champsim::ad
 
     if (stride1 == stride2 && stride1 != 0) {
       // Detected constant stride.
+      if (it_entry.confidence < 3)
+        it_entry.confidence++;
+      is_confident = true;
+
 #ifdef ADAPTIVE_PF_DEG // compile with `make CPPFLAGS=-DADAPTIVE_PF_DEG -j`
       for (std::size_t i = 0; i < current_prefetch_degree; ++i) {
 #else
@@ -84,8 +93,15 @@ uint32_t ghb_pccs::prefetcher_cache_operate(champsim::address addr, champsim::ad
         }
 
         const uint64_t pf_addr = static_cast<uint64_t>(pf_block) << LOG2_BLOCK_SIZE;
-        prefetch_line(champsim::address{pf_addr}, true, 0);
+
+        if (prefetch_enabled) {
+          prefetch_line(champsim::address{pf_addr}, true, 0);
+        } else {
+          pending_prefetches.push_back(champsim::address{pf_addr});
+        }
       }
+    } else {
+      it_entry.confidence = 0;
     }
   }
 
@@ -104,6 +120,13 @@ uint32_t ghb_pccs::prefetcher_cache_operate(champsim::address addr, champsim::ad
   head_counter = (head_counter + 1) & ((1 << GHB_PTR_BITS) - 1);
 
   return metadata_in;
+}
+
+void ghb_pccs::issue_pending_prefetches(uint32_t metadata_in)
+{
+  for (const auto& addr : pending_prefetches) {
+    prefetch_line(addr, true, metadata_in);
+  }
 }
 
 #ifdef ADAPTIVE_PF_DEG
