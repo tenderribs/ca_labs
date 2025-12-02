@@ -57,6 +57,11 @@ uint32_t bop::prefetcher_cache_fill(champsim::address addr, long set, long way, 
 uint32_t bop::prefetcher_cache_operate(champsim::address addr, champsim::address ip, uint8_t cache_hit, bool useful_prefetch, access_type type,
                                        uint32_t metadata_in)
 {
+  // only operate on cache misses or useful prefetch fills
+  if (cache_hit && !useful_prefetch) {
+    return metadata_in;
+  }
+
   // Normalize
   uint64_t current_line = addr.to<uint64_t>() >> LOG2_BLOCK_SIZE;
 
