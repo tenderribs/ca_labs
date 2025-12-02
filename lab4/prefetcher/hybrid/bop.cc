@@ -62,6 +62,8 @@ uint32_t bop::prefetcher_cache_operate(champsim::address addr, champsim::address
     return metadata_in;
   }
 
+  clear_candidates(); // RESET for this cycle
+
   // Normalize
   uint64_t current_line = addr.to<uint64_t>() >> LOG2_BLOCK_SIZE;
 
@@ -136,8 +138,16 @@ void bop::issue_prefetch(champsim::address addr, bool cache_hit, uint32_t metada
   uint64_t current_line = addr.to<uint64_t>() >> LOG2_BLOCK_SIZE;
   uint64_t pf_line = current_line + best_offset;
 
-  // Page Boundary Check: prefetch line and current_line are in same page
+  // Page Boundary Check
   if ((pf_line >> (LOG2_PAGE_SIZE - LOG2_BLOCK_SIZE)) == (current_line >> (LOG2_PAGE_SIZE - LOG2_BLOCK_SIZE))) {
-    prefetch_line(pf_line << LOG2_BLOCK_SIZE, cache_hit, metadata_in);
+
+    // If we are in "Hybrid Mode" (prefetch_enabled is false),
+    // we just store the candidate for the controller.
+    if (!prefetch_enabled) {
+      generated_candidates.push_back(pf_line);
+    } else {
+      // Standalone mode
+      prefetch_line(pf_line << LOG2_BLOCK_SIZE, cache_hit, metadata_in);
+    }
   }
 }

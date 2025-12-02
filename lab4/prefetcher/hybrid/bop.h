@@ -39,11 +39,15 @@ class bop : public champsim::modules::prefetcher
 
 public:
   using prefetcher::prefetcher;
-
   bool prefetch_enabled = true;
-  int get_best_score() const;
-  void issue_prefetch(champsim::address addr, bool cache_hit, uint32_t metadata_in);
 
+  std::vector<uint64_t> generated_candidates;
+  const std::vector<uint64_t>& get_candidates() const { return generated_candidates; }
+  void clear_candidates() { generated_candidates.clear(); }
+
+  int get_best_score() const;
+
+  void issue_prefetch(champsim::address addr, bool cache_hit, uint32_t metadata_in);
   void prefetcher_initialize();
   // void prefetcher_branch_operate(champsim::address ip, uint8_t branch_type, champsim::address branch_target) {}
   uint32_t prefetcher_cache_operate(champsim::address addr, champsim::address ip, uint8_t cache_hit, bool useful_prefetch, access_type type,
