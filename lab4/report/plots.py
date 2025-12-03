@@ -281,38 +281,38 @@ if __name__ == "__main__":
         plot=False,
     )
 
-    compare_prefetchers(
-        ghb_adaptive_full_bw,
-        bop_full_bw,
-        hybrid_full_bw,
-        "GHB Adaptive (Full BW)",
-        "BOP (Full BW)",
-        "Hybrid GHB, BOP (Full BW)",
-        "",
-    )
-    compare_prefetchers(
-        ghb_adaptive_limited_bw,
-        bop_limited_bw,
-        hybrid_limited_bw,
-        "GHB Adaptive (Limited BW)",
-        "BOP (Limited BW)",
-        "Hybrid GHB, BOP (Limited BW)",
-        "",
-    )
+    # compare_prefetchers(
+    #     ghb_adaptive_full_bw,
+    #     bop_full_bw,
+    #     hybrid_full_bw,
+    #     "GHB Adaptive (Full BW)",
+    #     "BOP (Full BW)",
+    #     "Hybrid GHB, BOP (Full BW)",
+    #     "",
+    # )
+    # compare_prefetchers(
+    #     ghb_adaptive_limited_bw,
+    #     bop_limited_bw,
+    #     hybrid_limited_bw,
+    #     "GHB Adaptive (Limited BW)",
+    #     "BOP (Limited BW)",
+    #     "Hybrid GHB, BOP (Limited BW)",
+    #     "",
+    # )
 
     # ======= Bonus Task =======
 
-    pythia_full_bw = rel_speedup(
-        with_pref="report/data/task5_1C_fullBW_pythia.csv",
-        no_pref="report/data/task0_1C_fullBW_nopref.csv",
-        plot=False,
-    )
+    # pythia_full_bw = rel_speedup(
+    #     with_pref="report/data/task5_1C_fullBW_pythia.csv",
+    #     no_pref="report/data/task0_1C_fullBW_nopref.csv",
+    #     plot=False,
+    # )
 
-    pythia_limited_bw = rel_speedup(
-        with_pref="report/data/task5_1C_limitBW_pythia.csv",
-        no_pref="report/data/task2_1C_limitBW_nopref.csv",
-        plot=False,
-    )
+    # pythia_limited_bw = rel_speedup(
+    #     with_pref="report/data/task5_1C_limitBW_pythia.csv",
+    #     no_pref="report/data/task2_1C_limitBW_nopref.csv",
+    #     plot=False,
+    # )
 
     # compare_prefetchers(
     #     ghb_adaptive_full_bw,

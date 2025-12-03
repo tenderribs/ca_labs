@@ -96,21 +96,21 @@ charlie_4   0.018
 
 ## Task 3/4: System-Aware Prefetcher Design
 
-As suggested in the task description, the strided GHB prefetcher performs worse in the bandwidth limited system due to the higher cost of speculative prefetches wasting bandwidth. Task 3 therefore is concerned with implementing system feedback, so that the prefetcher throttles its aggressiveness based on a heuristic scheme as laid out in the task description.
+As suggested in the task description, the strided GHB prefetcher performs worse in a bandwidth-limited system because speculative prefetches consume valuable memory bandwidth. Task 3 therefore introduces system feedback: the prefetcher adaptively throttles its aggressiveness using a heuristic scheme described in the assignment.
 
 ### Results
 
-The performance metrics of the system aware strided GHB prefetcher in the full BW system and limited BW system are plotted in [@fig:t3_fullbw] and [@fig:t3_limitbw] respectively.
+The performance of the system-aware strided GHB prefetcher in both the full-BW and limited-BW systems is shown in [@fig:t3_fullbw] and [@fig:t3_limitbw], respectively.
 
 #### Full Bandwidth System
 
-The bar graph for the full BW system shows that the system-aware prefetcher's accuracy improves on almost all workloads. The IPC speedup values are identical to those of the system-unaware prefetcher.
+In the full-BW system, the system-aware prefetcher achieves higher accuracy on most workloads while preserving the IPC speedups observed with the system-unaware prefetcher. In other words, it issues fewer pointless prefetches without sacrificing performance.
 
 #### Limited Bandwidth System
 
-The bar graph for the limited BW system shows notably decreased IPC speedups for the system-aware GHB prefetcher on the `bfs-10` and `bfs-14` workloads. Otherwise the IPC speedups either increase, or remain constant. The geometric mean of the IPC speedup decreases by a lower amount than the system-unaware prefetcher in the limited BW environent.
+In the limited-BW system, the system-aware prefetcher reduces IPC speedups for `bfs-10` and `bfs-14`, but otherwise maintains or improves them relative to the system-unaware baseline. Overall, the geometric mean IPC speedup declines less than with the system-unaware prefetcher under bandwidth constraints.
 
-The prefetching accuracy jumps by over `18%` in the geometric mean, because the prefetcher is more careful about which prefetches are issued. This is also reflected upon in the PPKI bar chart, with much fewer prefetches issued by the system-aware prefetcher.
+Prefetch accuracy increases by more than 18% (geometric mean), reflecting stricter issuance and better selectivity. This is consistent with the lower PPKI observed: the system-aware prefetcher issues substantially fewer prefetches, conserving bandwidth for useful demand requests.
 
 ![Task 3: System-Aware Strided GHB Prefetcher (1 CPU, *Full* BW)](./img/task3_ghb_pccs_adaptive_fullbw.eps){#fig:t3_fullbw}
 
@@ -120,10 +120,27 @@ The prefetching accuracy jumps by over `18%` in the geometric mean, because the 
 
 ## Task 4/4: Design Your Own Prefetcher
 
-TBD
+In Task 4 I implemented my own prefetcher design.
+
+## My Prefetcher
+
+I based my preliminary design on the Best-Offset-Prefetcher (BOP) that won DPCA2 in 2015 . Considering its success in that competition, I was expecting good performance. The strided GHB prefetcher especially struggled on the Charlie workloads, which lack accesses of constant stride. My BOP is a direct replication of the system described in [@michaud].
+
+As can be seen in [@fig:t4_ghb_bop_hybrid_full], the BOP outperforms the system-aware strided GHB on the Charlie workloads and the `bfs-10` and `bfs-14` workloads. On the remaining graph analytics workloads however, the strided GHB prefetcher outperformed the BOP algorithm by a large margin.
+
+Given the complimentary nature of both prefetcher designs, I decided to combine the two prefetcher in a hybrid design. The hybrid design runs a constant tournament between the ghb and bop prefetchers, selecting the better performing one on the fly. The hybrid prefetcher runs instances of either subprefetcher and tracks which cache lines would have been prefetched in a shadow table. On each cache access, the hybrid prefetcher "virtually" runs each prefetcher, updating its state and virtually issuing prefetches. If a virtually issued cache line ends up being useful later on, the hybrid prefetcher increases its preference for the prefetcher that would have issued that useful prefetch. All the while, the hybrid prefetcher actually issues the prefetches suggested by the winning prefetcher.
+
+The hybrid prefetcher works pretty well. The graphs show that the IPC Speedup on most workloads is close to the max speedup of either subprefetcher. The hybrid's geometric mean  IPC speedup is `0.01` higher than system-aware GHB's.  The exception is on the `bfs-10` and `bfs-14` the hybrid is considerably worse then the constituent subprefetcher's results.
+
+![Task 4: Hybrid prefetcher chooses the better performing of either BOP or GHB (1 CPU, *Full* BW)](./img/task4_GHB_BOP_hybrid_fullbw.eps){#fig:t4_ghb_bop_hybrid_full}
+
+![Task 4: Hybrid prefetcher chooses the better performing of either BOP or GHB (1 CPU, *Limited* BW)](./img/task4_GHB_BOP_hybrid_limitbw.eps){#fig:t4_ghb_bop_hybrid_limit}
+
+## Future Work
+
+I realize that the BOP doesn't perform particularly that much better than strided GHB to begin with, so the hybrid prefetcher cannot be that much better either. Perhaps I'd have to find a prefetcher to replace BOP or some other prefetchers that complement each other. Then run them in a tournament, because that worked surprisingly well.
 
 \newpage
-
 
 ## Bonus Task: Comparison Against a State-Of-The-Art Prefetcher
 
@@ -134,4 +151,5 @@ In the bonus task, I compare Pythia [@pythia], a state-of-the-art prefetcher aga
 ![Bonus Task: IPC Speedup Comparison (1 CPU, *Limited* BW)](./img/bonus_pythia_limited.eps){#fig:bt_limitbw}
 
 \newpage
+
 ## Citations
