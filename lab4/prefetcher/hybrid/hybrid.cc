@@ -70,21 +70,28 @@ uint32_t hybrid::prefetcher_cache_operate(champsim::address addr, champsim::addr
   }
 
   // 2. RUN SUB-PREFETCHERS (Without actually issuing prefetches)
+  // GHB runs on every access to maintain its global history state (strides, etc.)
   ghb_pref.prefetcher_cache_operate(addr, ip, cache_hit, useful_prefetch, type, metadata_in);
+  // BOP internally checks for (!cache_hit || useful_prefetch) and does nothing otherwise
   bop_pref.prefetcher_cache_operate(addr, ip, cache_hit, useful_prefetch, type, metadata_in);
 
   // 3. GATHER CANDIDATES
   const std::vector<champsim::address>& ghb_raw = ghb_pref.pending_prefetches;
   const uint64_t bop_best_line = bop_pref.best_line;
 
-  // Populate Shadow Table with what they would have done
-  // GHB:
-  for (const auto& addr_obj : ghb_raw) {
-    update_shadow_table(addr_obj.to<uint64_t>() >> LOG2_BLOCK_SIZE, 1);
-  }
-  // BOP:
-  if (bop_pref.best_line_valid) {
-    update_shadow_table(bop_best_line, 2);
+  // Populate Shadow Table with what they would have done.
+  // Note: GHB operates on every access, BOP only on cache misses or useful prefetches
+  // to prevent an imbalance in the shadow table (more GHB sourced entries),
+  // only update shadow table on these events.
+  if (!cache_hit || useful_prefetch) {
+    // GHB:
+    for (const auto& addr_obj : ghb_raw) {
+      update_shadow_table(addr_obj.to<uint64_t>() >> LOG2_BLOCK_SIZE, 1);
+    }
+    // BOP:
+    if (bop_pref.best_line_valid) {
+      update_shadow_table(bop_best_line, 2);
+    }
   }
 
   // 4. ARBITRATION
