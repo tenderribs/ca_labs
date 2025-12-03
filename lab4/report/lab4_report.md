@@ -30,6 +30,8 @@ The hardware prefetcher designs are evaluated on CPU traces collected from fourt
 In [@fig:task0_nopref_ipc] is a plot of the instructions-per-cycle (IPC) for each workload.
 The `charlie_1` trace resulted in the highest IPC value, while the `bfs-14` trace got the lowest IPC value.
 
+\newpage
+
 ## Task 1/4: Implementing GHB-based Stride Prefetcher
 
 ### Implementation
@@ -57,6 +59,8 @@ The utility of the prefetcher is highly heterogenous for the different types of 
 
 ##### Charlie Workloads
 `charlie_2` got the lowest IPC speedup of all workloads. With the exception of `charlie_3`, very few prefetches were issued for this group of workloads, leading to very low IPC speedups overall. For `charlie_3`, the number of issued prefetches was much higher, but with very poor accuracy. This indicates that the charlie workloads (sourced from Google data centers) feature cache accesses that don't suit a constant-stride prefetcher's profile. Possibly these workloads resemble pointer-chasing or random accesses.
+
+\newpage
 
 ## Task 2/4: Prefetching with Limited Main Memory Bandwidth
 
@@ -120,25 +124,41 @@ Prefetch accuracy increases by more than 18% (geometric mean), reflecting strict
 
 ## Task 4/4: Design Your Own Prefetcher
 
-In Task 4 I implemented my own prefetcher design.
+In Task 4, I implemented a custom hybrid prefetcher designed to adapt to varying workload characteristics.
 
-## My Prefetcher
+### Design Rationale
 
-I based my preliminary design on the Best-Offset-Prefetcher (BOP) that won DPCA2 in 2015 . Considering its success in that competition, I was expecting good performance. The strided GHB prefetcher especially struggled on the Charlie workloads, which lack accesses of constant stride. My BOP is a direct replication of the system described in [@michaud].
+The initial design focused on the Best-Offset Prefetcher (BOP) [@michaud], motivated by the observation that the strided GHB prefetcher struggled with the irregular access patterns of the "Charlie" workloads. As shown in [@fig:t4_ghb_bop_hybrid_full], the BOP outperforms the system-aware GHB on the Charlie traces and specific graph workloads like `bfs-10` and `bfs-14`. However, on the remaining graph analytics workloads, the strided GHB retains a substantial performance advantage.
 
-As can be seen in [@fig:t4_ghb_bop_hybrid_full], the BOP outperforms the system-aware strided GHB on the Charlie workloads and the `bfs-10` and `bfs-14` workloads. On the remaining graph analytics workloads however, the strided GHB prefetcher outperformed the BOP algorithm by a large margin.
+Recognizing the complementary performance profiles of these two designs, I implemented a hybrid tournament prefetcher. This design dynamically selects between the BOP and the strided GHB based on their runtime accuracy.
 
-Given the complimentary nature of both prefetcher designs, I decided to combine the two prefetcher in a hybrid design. The hybrid design runs a constant tournament between the ghb and bop prefetchers, selecting the better performing one on the fly. The hybrid prefetcher runs instances of either subprefetcher and tracks which cache lines would have been prefetched in a shadow table. On each cache access, the hybrid prefetcher "virtually" runs each prefetcher, updating its state and virtually issuing prefetches. If a virtually issued cache line ends up being useful later on, the hybrid prefetcher increases its preference for the prefetcher that would have issued that useful prefetch. All the while, the hybrid prefetcher actually issues the prefetches suggested by the winning prefetcher.
+### Hybrid Architecture
 
-The hybrid prefetcher works pretty well. The graphs show that the IPC Speedup on most workloads is close to the max speedup of either subprefetcher. The hybrid's geometric mean  IPC speedup is `0.01` higher than system-aware GHB's.  The exception is on the `bfs-10` and `bfs-14` the hybrid is considerably worse then the constituent subprefetcher's results.
+The hybrid prefetcher maintains active instances of both the GHB and BOP engines. To determine which prefetcher is currently more effective, it employs a "shadow table" (or scoring board) that tracks the theoretical accuracy of each prefetcher without necessarily issuing their requests to memory.
+
+On every cache access, the hybrid system performs the following steps:
+
+1.  **Virtual Prefetching:** Both sub-prefetchers calculate their candidate addresses. Instead of issuing them immediately, the system records these addresses in the shadow table, tagging them with the ID of the generating prefetcher.
+2.  **Score Update:** If the current demand access matches an entry in the shadow table, it indicates a successful "virtual" prefetch. The preference tracker of the hybrid prefetcher is adjusted to favor the prefetcher that originally suggested this address more.
+3.  **Selection and Issuance:** The system compares the scores of the two engines. The prefetcher with the higher score is deemed the "winner," and its candidate address is issued to the L2C.
+
+### Results
+
+The hybrid prefetcher demonstrates robust performance stability across the benchmark suite. As shown in [@fig:t4_ghb_bop_hybrid_full] and [@fig:t4_ghb_bop_hybrid_limit], the hybrid design generally tracks the maximum speedup of its constituent prefetchers.
+
+- Overall Improvement: The geometric mean IPC speedup is 1% higher than the system-aware GHB baseline.
+- Adaptability: It successfully captures the high performance of BOP on Charlie workloads while retaining GHB's advantage on standard graph algorithms.
+- Limitations: A notable regression occurs on `bfs-10` and `bfs-14`, where the hybrid performs worse than the standalone BOP.
 
 ![Task 4: Hybrid prefetcher chooses the better performing of either BOP or GHB (1 CPU, *Full* BW)](./img/task4_GHB_BOP_hybrid_fullbw.eps){#fig:t4_ghb_bop_hybrid_full}
 
 ![Task 4: Hybrid prefetcher chooses the better performing of either BOP or GHB (1 CPU, *Limited* BW)](./img/task4_GHB_BOP_hybrid_limitbw.eps){#fig:t4_ghb_bop_hybrid_limit}
 
-## Future Work
+### Future Work
 
-I realize that the BOP doesn't perform particularly that much better than strided GHB to begin with, so the hybrid prefetcher cannot be that much better either. Perhaps I'd have to find a prefetcher to replace BOP or some other prefetchers that complement each other. Then run them in a tournament, because that worked surprisingly well.
+The analysis of the hybrid prefetcher suggests that its performance ceiling was limited not by the selection logic, but by the similarity between the chosen sub-prefetchers. While the tournament mechanism proved effective at dynamically selecting the better engine, the Best-Offset Prefetcher (BOP) did not offer a sufficiently large performance advantage over the strided GHB to drive significant gains.
+
+Future work should focus on replacing the BOP with a prefetcher that exhibits a more orthogonal performance profile to the strided GHB. Since the GHB handles regular strided patterns well, a complementary design—such as a temporal or spatial prefetcher would be better suited to handle the irregular access patterns seen in the "Charlie" workloads. By pairing the GHB with a prefetcher that targets completely different access behaviors, the hybrid system could achieve much higher aggregate performance.
 
 \newpage
 
@@ -146,7 +166,23 @@ I realize that the BOP doesn't perform particularly that much better than stride
 
 In the bonus task, I compare Pythia [@pythia], a state-of-the-art prefetcher against the other prefetchers I designed in this lab.
 
+The performance of Pythia compared to the System-Aware GHB and the BOP/GHB Hybrid designs is plotted in [@fig:bt_fullbw] and [@fig:bt_limitbw].
+
+### Results
+
+#### Full Bandwidth System
+
+In the unconstrained bandwidth configuration, Pythia demonstrates a significant performance advantage over the heuristic-based prefetchers, achieving a geometric mean speedup of 1.27 compared to 1.18 for the Hybrid design.
+
+- **Complex Patterns**: Pythia excels in workloads with irregular or complex access patterns. notably the `charlie` traces and the `bfs` workloads. In `bfs-10` and `bfs-14`, Pythia achieves speedups over 1.9x, vastly outperforming the ~1.5x achieved by the GHB/BOP designs. This suggests that the Reinforcement Learning (RL) agent successfully learns access patterns that are not strictly strided or offset-based.
+- **Regular Patterns**: In highly regular workloads like `bc`, Pythia performs slightly worse than the dedicated stride/offset prefetchers.
+
 ![Bonus Task: IPC Speedup Comparison (1 CPU, *full* BW)](./img/bonus_pythia_full.eps){#fig:bt_fullbw}
+
+#### Limited Bandwidth System
+
+- While Pythia retains its dominance in the `bfs` and `charlie` workloads, it suffers severe degradation in the `bc` traces, dropping below a speedup of `1.0` (indicating performance degradation). This implies that Pythia acts too aggressively for the constrained bandwidth, displacing demand requests.
+- Comparison to System-Awareness: Unlike the System-Aware GHB designed in Task 3, which explicitly throttles its degree based on bandwidth usage, Pythia's default reward function may not penalize bandwidth consumption heavily enough.
 
 ![Bonus Task: IPC Speedup Comparison (1 CPU, *Limited* BW)](./img/bonus_pythia_limited.eps){#fig:bt_limitbw}
 
