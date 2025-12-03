@@ -24,6 +24,8 @@ private:
     int creator; // 1=GHB, 2=BOP, 3=BOTH
     uint64_t timestamp;
   };
+
+  // key: line_addr, value: ShadowEntry
   std::map<uint64_t, ShadowEntry> shadow_table;
   uint64_t access_count = 0;
 
