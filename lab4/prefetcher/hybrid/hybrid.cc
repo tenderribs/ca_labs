@@ -2,61 +2,138 @@
 
 #include <iostream>
 
-#include "dpc_api.h" // For get_dram_bw()
+#include "dpc_api.h"
+
+void hybrid::prefetcher_initialize()
+{
+  ghb_pref.prefetcher_initialize();
+  bop_pref.prefetcher_initialize();
+
+  tournament_counter = 5; // Neutral start
+
+  // override subprefetcher defaults set by prefetcher_initialize()
+  ghb_pref.hybrid_mode = true;
+  bop_pref.hybrid_mode = true;
+}
+
+// Helper to track virtual predictions
+void hybrid::update_shadow_table(uint64_t line_addr, int predictor_id)
+{
+  auto line_addr_it = shadow_table.find(line_addr);
+  if (line_addr_it == shadow_table.end()) {
+    // New entry
+    shadow_table[line_addr] = {predictor_id, access_count};
+  } else {
+    // Entry exists. If creator is different, mark as BOTH (3)
+    if (line_addr_it->second.creator != predictor_id) {
+      line_addr_it->second.creator = 3;
+    }
+    line_addr_it->second.timestamp = access_count; // Touch LRU
+  }
+
+  // Cleanup old entries (simple garbage collection)
+  if (shadow_table.size() > 256) {
+    // Find LRU
+    auto lru_it = shadow_table.begin();
+    for (auto it = shadow_table.begin(); it != shadow_table.end(); ++it) {
+      if (it->second.timestamp < lru_it->second.timestamp) {
+        lru_it = it;
+      }
+    }
+    shadow_table.erase(lru_it);
+  }
+}
 
 uint32_t hybrid::prefetcher_cache_operate(champsim::address addr, champsim::address ip, uint8_t cache_hit, bool useful_prefetch, access_type type,
                                           uint32_t metadata_in)
 {
-  // Disable automatic prefetching for sub-prefetchers
-  ghb_pref.prefetch_enabled = false;
-  bop_pref.prefetch_enabled = false;
+  access_count++;
+  uint64_t current_line = addr.to<uint64_t>() >> LOG2_BLOCK_SIZE;
 
-  // Update state of both prefetchers
+  // 1. SCORING
+  // Did anyone predict this current access recently?
+  auto it = shadow_table.find(current_line);
+  if (it != shadow_table.end()) {
+    int creator = it->second.creator;
+
+    // BOP only
+    if (creator == 2 && tournament_counter > 0) {
+      tournament_counter--;
+
+    } // GHB only
+    else if (creator == 1 && tournament_counter < 10) {
+      tournament_counter++;
+    }
+    // If creator == 3 (Both), do nothing (neutral).
+
+    shadow_table.erase(it); // Consumed
+  }
+
+  // 2. RUN SUB-PREFETCHERS (Without actually issuing prefetches)
+  // GHB runs on every access to maintain its global history state (strides, etc.)
   ghb_pref.prefetcher_cache_operate(addr, ip, cache_hit, useful_prefetch, type, metadata_in);
+  // BOP internally checks for (!cache_hit || useful_prefetch) and does nothing otherwise
   bop_pref.prefetcher_cache_operate(addr, ip, cache_hit, useful_prefetch, type, metadata_in);
 
-  // Tournament Logic
+  // 3. GATHER CANDIDATES
+  const std::vector<champsim::address>& ghb_raw = ghb_pref.pending_prefetches;
+  const uint64_t bop_best_line = bop_pref.best_line;
 
-  // 1. Gather Metrics
-  bool ghb_confident = ghb_pref.is_confident;
-  int bop_score = bop_pref.get_best_score();
-  uint8_t bw = get_dram_bw(); // 0 (empty) to 16 (full)
-
-  // 2. GHB is high precision, so we prioritize it.
-  if (ghb_confident) {
-    ghb_pref.issue_pending_prefetches(metadata_in);
-    ghb_prefetches++;
+  // Populate Shadow Table with what they would have done.
+  // Note: GHB operates on every access, BOP only on cache misses or useful prefetches
+  // to prevent an imbalance in the shadow table (more GHB sourced entries),
+  // only update shadow table on these events.
+  if (!cache_hit || useful_prefetch) {
+    // GHB:
+    for (const auto& addr_obj : ghb_raw) {
+      update_shadow_table(addr_obj.to<uint64_t>() >> LOG2_BLOCK_SIZE, 1);
+    }
+    // BOP:
+    if (bop_pref.best_line_valid) {
+      update_shadow_table(bop_best_line, 2);
+    }
   }
 
-  // 3. BOP Decision (The Global Observer)
-  // BOP is allowed if it has a high enough score relative to system congestion.
+  // 4. ARBITRATION
+  bool issue_ghb = false;
+  bool issue_bop = false;
 
-  int bop_threshold = 1; // Base threshold (must be > BAD_SCORE=1)
-  if (bw >= 13) {
-      bop_threshold = 20;
-  } else if (bw >= 9) {
-      bop_threshold = 5;
-  } else {
-      bop_threshold = 1;
+  // Contended BW: Pick the Winner only
+  if (tournament_counter >= 6)
+    issue_ghb = true; // Leaning GHB
+  else if (tournament_counter <= 4)
+    issue_bop = true; // Leaning BOP
+  else {              // Neutral -> Both
+    issue_ghb = true;
+    issue_bop = true;
   }
 
-  // If GHB is also firing, we should be more careful with BOP to avoid flooding
-  if (ghb_confident) {
-      bop_threshold += 10; // Significant penalty if GHB is already using BW
+  // Final Issue
+  if (issue_ghb) {
+    for (const auto& addr_obj : ghb_raw) {
+      prefetch_line(addr_obj, true, metadata_in);
+      ghb_prefetches++;
+    }
   }
 
-  // Issue BOP if score meets threshold
-  if (bop_score > bop_threshold) {
-    bop_pref.issue_prefetch(addr, cache_hit, metadata_in);
+  if (issue_bop && bop_pref.best_line_valid) {
+    prefetch_line(champsim::address{bop_best_line << LOG2_BLOCK_SIZE}, true, metadata_in);
     bop_prefetches++;
   }
 
   return metadata_in;
 }
 
+void hybrid::prefetcher_cycle_operate()
+{
+  // allow ghb prefetcher to update accuracy measurements
+  ghb_pref.prefetcher_cycle_operate();
+}
+
 uint32_t hybrid::prefetcher_cache_fill(champsim::address addr, long set, long way, uint8_t prefetch, champsim::address evicted_addr, uint32_t metadata_in)
 {
-  return metadata_in;
+  // allow the bop prefetcher to update its RR table
+  return bop_pref.prefetcher_cache_fill(addr, set, way, prefetch, evicted_addr, metadata_in);
 }
 
 void hybrid::prefetcher_final_stats()

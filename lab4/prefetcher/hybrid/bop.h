@@ -40,9 +40,12 @@ class bop : public champsim::modules::prefetcher
 public:
   using prefetcher::prefetcher;
 
+  // hybrid sub-prefetcher related members
+  bool hybrid_mode = false;     // select if GHB pref. is being used as part of hybrid pref. or standalone
+  uint64_t best_line;           // best candidate line found by BOP to be prefetched
+  bool best_line_valid = false; // does best_line meet conditions for hybrid prefetcher to issue prefetch?
+
   bool prefetch_enabled = true;
-  int get_best_score() const;
-  void issue_prefetch(champsim::address addr, bool cache_hit, uint32_t metadata_in);
 
   void prefetcher_initialize();
   // void prefetcher_branch_operate(champsim::address ip, uint8_t branch_type, champsim::address branch_target) {}

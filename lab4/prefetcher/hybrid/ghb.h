@@ -6,9 +6,8 @@
 #include <limits>
 
 #include "champsim.h"
-#include "modules.h"
-
 #include "dpc_api.h"
+#include "modules.h"
 
 #define IT_SZ 256 // Size of the index table
 #define IT_SZ_LOG2 8
@@ -31,9 +30,9 @@ struct GHBEntry {
 
 // only lower bits of the ptr and tag members are used to have same restrictions as in real hardware.
 struct ITEntry {
-  uint16_t ghb_ptr; // lower 12 bits (paper adds 4 bits to ghb size) of the last GHB slot for this PC
-  uint16_t tag;     // lower 8 bit tag of the PC
-  bool valid;       // Validity bit
+  uint16_t ghb_ptr;   // lower 12 bits (paper adds 4 bits to ghb size) of the last GHB slot for this PC
+  uint16_t tag;       // lower 8 bit tag of the PC
+  bool valid;         // Validity bit
   uint8_t confidence; // how often this stride has been seen
 };
 
@@ -42,8 +41,8 @@ class ghb : public champsim::modules::prefetcher
 public:
   using prefetcher::prefetcher;
 
-  bool prefetch_enabled = true;
-  bool is_confident = false;
+  bool hybrid_mode = false; // select if GHB pref. is being used as part of hybrid pref. or standalone
+
   std::vector<champsim::address> pending_prefetches;
   void issue_pending_prefetches(uint32_t metadata_in);
 
