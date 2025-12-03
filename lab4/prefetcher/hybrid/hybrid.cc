@@ -19,21 +19,28 @@ void hybrid::prefetcher_initialize()
 // Helper to track virtual predictions
 void hybrid::update_shadow_table(uint64_t line_addr, int predictor_id)
 {
-  auto it = shadow_table.find(line_addr);
-  if (it == shadow_table.end()) {
+  auto line_addr_it = shadow_table.find(line_addr);
+  if (line_addr_it == shadow_table.end()) {
     // New entry
     shadow_table[line_addr] = {predictor_id, access_count};
   } else {
     // Entry exists. If creator is different, mark as BOTH (3)
-    if (it->second.creator != predictor_id) {
-      it->second.creator = 3;
+    if (line_addr_it->second.creator != predictor_id) {
+      line_addr_it->second.creator = 3;
     }
-    it->second.timestamp = access_count; // Touch LRU
+    line_addr_it->second.timestamp = access_count; // Touch LRU
   }
 
   // Cleanup old entries (simple garbage collection)
   if (shadow_table.size() > 256) {
-    shadow_table.erase(shadow_table.begin());
+    // Find LRU
+    auto lru_it = shadow_table.begin();
+    for (auto it = shadow_table.begin(); it != shadow_table.end(); ++it) {
+      if (it->second.timestamp < lru_it->second.timestamp) {
+        lru_it = it;
+      }
+    }
+    shadow_table.erase(lru_it);
   }
 }
 
@@ -49,17 +56,16 @@ uint32_t hybrid::prefetcher_cache_operate(champsim::address addr, champsim::addr
   if (it != shadow_table.end()) {
     int creator = it->second.creator;
 
-    // If BOP predicted it (2) or Both (3), push counter toward BOP (0)
-    if (creator == 2 || creator == 3) {
-      if (tournament_counter > 0)
-        tournament_counter--;
-    }
+    // BOP only
+    if (creator == 2 && tournament_counter > 0) {
+      tournament_counter--;
 
-    // If GHB predicted it (1) or Both (3), push counter toward GHB (10)
-    if (creator == 1 || creator == 3) {
-      if (tournament_counter < 10)
-        tournament_counter++;
+    } // GHB only
+    else if (creator == 1 && tournament_counter < 10) {
+      tournament_counter++;
     }
+    // If creator == 3 (Both), do nothing (neutral).
+
     shadow_table.erase(it); // Consumed
   }
 
@@ -78,7 +84,7 @@ uint32_t hybrid::prefetcher_cache_operate(champsim::address addr, champsim::addr
   }
   // BOP:
   if (bop_pref.best_line_valid) {
-    update_shadow_table(line, 2);
+    update_shadow_table(bop_best_line, 2);
   }
 
   // 4. ARBITRATION
@@ -104,7 +110,7 @@ uint32_t hybrid::prefetcher_cache_operate(champsim::address addr, champsim::addr
   }
 
   if (issue_bop && bop_pref.best_line_valid) {
-    prefetch_line(champsim::address{best_line << LOG2_BLOCK_SIZE}, true, metadata_in);
+    prefetch_line(champsim::address{bop_best_line << LOG2_BLOCK_SIZE}, true, metadata_in);
     bop_prefetches++;
   }
 
@@ -120,7 +126,7 @@ void hybrid::prefetcher_cycle_operate()
 uint32_t hybrid::prefetcher_cache_fill(champsim::address addr, long set, long way, uint8_t prefetch, champsim::address evicted_addr, uint32_t metadata_in)
 {
   // allow the bop prefetcher to update its RR table
-  return bop.prefetcher_cache_fill(addr, set, way, prefetch, evicted_addr, metadata_in)
+  return bop_pref.prefetcher_cache_fill(addr, set, way, prefetch, evicted_addr, metadata_in);
 }
 
 void hybrid::prefetcher_final_stats()
