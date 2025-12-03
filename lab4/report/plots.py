@@ -150,29 +150,43 @@ def compare_rel_speedups(df_full, df_limited):
     return merged
 
 
-def compare_prefetchers(df1, df2, label1, label2, title):
+def compare_prefetchers(df1, df2, df3, label1, label2, label3, title):
     """
-    Plots grouped bars of IPC speedup for two different prefetcher configurations.
+    Plots grouped bars of IPC speedup for three different prefetcher configurations.
     """
-    # Merge the two dataframes on 'trace'
-    merged = df1[["trace", "speedup"]].merge(
-        df2[["trace", "speedup"]], on="trace", suffixes=("_1", "_2")
-    )
+    # Rename columns to avoid collision and merge
+    d1 = df1[["trace", "speedup"]].rename(columns={"speedup": "speedup_1"})
+    d2 = df2[["trace", "speedup"]].rename(columns={"speedup": "speedup_2"})
+    d3 = df3[["trace", "speedup"]].rename(columns={"speedup": "speedup_3"})
+
+    merged = d1.merge(d2, on="trace").merge(d3, on="trace")
 
     # Filter out the GEOMEAN row for plotting if desired, or keep it.
     # Usually plotting GEOMEAN alongside traces is fine.
 
     x = np.arange(len(merged["trace"]))
-    width = 0.35
+    pos_offset = 0.27
+    bar_width = 0.25
 
-    plt.figure(figsize=(12, 6))
+    plt.figure(figsize=(14, 6))
 
     # Plot bars
     bars1 = plt.bar(
-        x - width / 2, merged["speedup_1"], width, label=label1, color="tab:blue"
+        x - pos_offset,
+        merged["speedup_1"],
+        width=bar_width,
+        label=label1,
+        color="tab:blue",
     )
     bars2 = plt.bar(
-        x + width / 2, merged["speedup_2"], width, label=label2, color="tab:orange"
+        x, merged["speedup_2"], width=bar_width, label=label2, color="tab:orange"
+    )
+    bars3 = plt.bar(
+        x + pos_offset,
+        merged["speedup_3"],
+        width=bar_width,
+        label=label3,
+        color="tab:green",
     )
 
     # Add labels and title
@@ -193,12 +207,13 @@ def compare_prefetchers(df1, df2, label1, label2, title):
                 f"{height:.2f}",
                 ha="center",
                 va="bottom",
-                fontsize=8,
-                # rotation=90,
+                fontsize=6,
+                # rotation=10,
             )
 
     add_labels(bars1)
     add_labels(bars2)
+    add_labels(bars3)
 
     plt.tight_layout()
 
@@ -268,16 +283,20 @@ if __name__ == "__main__":
 
     compare_prefetchers(
         ghb_adaptive_full_bw,
+        bop_full_bw,
         hybrid_full_bw,
         "GHB Adaptive (Full BW)",
-        "Hybrid (Full BW)",
+        "BOP (Full BW)",
+        "Hybrid GHB, BOP (Full BW)",
         "",
     )
     compare_prefetchers(
         ghb_adaptive_limited_bw,
+        bop_limited_bw,
         hybrid_limited_bw,
         "GHB Adaptive (Limited BW)",
-        "Hybrid (Limited BW)",
+        "BOP (Limited BW)",
+        "Hybrid GHB, BOP (Limited BW)",
         "",
     )
 
@@ -295,24 +314,23 @@ if __name__ == "__main__":
         plot=False,
     )
 
-    print(pythia_limited_bw)
-
-    # # Compare Adaptive vs Pythia (Full BW)
     # compare_prefetchers(
     #     ghb_adaptive_full_bw,
+    #     hybrid_full_bw,
     #     pythia_full_bw,
     #     "GHB Adaptive (Full BW)",
+    #     "BOP (Full BW)",
     #     "Pythia (Full BW)",
-    #     "IPC Speedup Comparison: GHB Adaptive vs Pythia (Full BW)",
+    #     "",
     # )
-
-    # # Compare Adaptive vs Pythia (Limited BW)
     # compare_prefetchers(
     #     ghb_adaptive_limited_bw,
+    #     hybrid_limited_bw,
     #     pythia_limited_bw,
     #     "GHB Adaptive (Limited BW)",
+    #     "BOP (Limited BW)",
     #     "Pythia (Limited BW)",
-    #     "IPC Speedup Comparison: GHB Adaptive vs Pythia (Limited BW)",
+    #     "",
     # )
 
     plt.show()
