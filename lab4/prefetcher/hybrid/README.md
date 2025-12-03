@@ -1,0 +1,1 @@
+Implementation of a hybrid prefetcher comprised of a "best-offset-prefetcher" and a "GHB PC/CS prefetcher". The best offset prefetcher is my replication of the prefetcher outline in Michaud's "Best-Offset Hardware Prefetching" paper.

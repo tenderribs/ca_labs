@@ -1,5 +1,5 @@
-#ifndef PREFETCHER_ABOP_H
-#define PREFETCHER_ABOP_H
+#ifndef PREFETCHER_BOP_H
+#define PREFETCHER_BOP_H
 
 #include <array>
 #include <cstdint>
@@ -8,7 +8,7 @@
 #include "champsim.h"
 #include "modules.h"
 
-class abop : public champsim::modules::prefetcher
+class bop : public champsim::modules::prefetcher
 {
   // Constants
   static constexpr int RR_TABLE_SIZE = 256;
@@ -30,7 +30,7 @@ class abop : public champsim::modules::prefetcher
   std::vector<int> scores;
 
   // Global State Registers
-  std::vector<int> best_offsets;
+  int best_offset;
   int current_degree;
   int round_counter;
   int access_counter;
@@ -39,6 +39,13 @@ class abop : public champsim::modules::prefetcher
 
 public:
   using prefetcher::prefetcher;
+
+  // hybrid sub-prefetcher related members
+  bool hybrid_mode = false;     // select if GHB pref. is being used as part of hybrid pref. or standalone
+  uint64_t best_line;           // best candidate line found by BOP to be prefetched
+  bool best_line_valid = false; // does best_line meet conditions for hybrid prefetcher to issue prefetch?
+
+  bool prefetch_enabled = true;
 
   void prefetcher_initialize();
   // void prefetcher_branch_operate(champsim::address ip, uint8_t branch_type, champsim::address branch_target) {}
