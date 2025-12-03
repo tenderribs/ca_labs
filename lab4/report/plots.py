@@ -36,7 +36,7 @@ def task_0():
             va="bottom",
         )
 
-    plt.ylabel("IPC Speedup")
+    plt.ylabel("IPC")
     plt.xticks(rotation=45, ha="right")
     plt.tight_layout()
 
@@ -79,7 +79,7 @@ def rel_speedup(with_pref: str, no_pref: str, plot: bool) -> pd.DataFrame:
         }
     )
     merged = pd.concat([merged, geomean_row], ignore_index=True)
-
+    # print(merged)
     print(
         f"geomean speedup: {geomean_speedup} geomean accuracy: {geomean_accuracy} geomean ppki: {geomean_ppki} "
     )
@@ -150,6 +150,59 @@ def compare_rel_speedups(df_full, df_limited):
     return merged
 
 
+def compare_prefetchers(df1, df2, label1, label2, title):
+    """
+    Plots grouped bars of IPC speedup for two different prefetcher configurations.
+    """
+    # Merge the two dataframes on 'trace'
+    merged = df1[["trace", "speedup"]].merge(
+        df2[["trace", "speedup"]], on="trace", suffixes=("_1", "_2")
+    )
+
+    # Filter out the GEOMEAN row for plotting if desired, or keep it.
+    # Usually plotting GEOMEAN alongside traces is fine.
+
+    x = np.arange(len(merged["trace"]))
+    width = 0.35
+
+    plt.figure(figsize=(12, 6))
+
+    # Plot bars
+    bars1 = plt.bar(
+        x - width / 2, merged["speedup_1"], width, label=label1, color="tab:blue"
+    )
+    bars2 = plt.bar(
+        x + width / 2, merged["speedup_2"], width, label=label2, color="tab:orange"
+    )
+
+    # Add labels and title
+    plt.ylabel("IPC Speedup")
+    # plt.title(title)
+    plt.xticks(x, merged["trace"], rotation=45, ha="right")
+    plt.axhline(1.0, color="black", linewidth=0.8, linestyle="--")
+    plt.legend()
+    plt.grid(axis="y", linestyle="--", alpha=0.7)
+
+    # Add value labels on top of bars
+    def add_labels(bars):
+        for bar in bars:
+            height = bar.get_height()
+            plt.text(
+                bar.get_x() + bar.get_width() / 2.0,
+                height,
+                f"{height:.2f}",
+                ha="center",
+                va="bottom",
+                fontsize=8,
+                # rotation=90,
+            )
+
+    add_labels(bars1)
+    add_labels(bars2)
+
+    plt.tight_layout()
+
+
 if __name__ == "__main__":
     # ======= Task 1 =======
     # No prefetchers
@@ -160,11 +213,11 @@ if __name__ == "__main__":
     # fixed_full_bw = rel_speedup(
     #     with_pref="report/data/task1_1C_fullBW_ghb_pccs_fixed_pd_20b_ip_tag.csv",
     #     no_pref="report/data/task0_1C_fullBW_nopref.csv",
-    #     plot=True,
+    #     plot=False,
     # )
 
-    # # ======= Task 2 =======
-    # # Limited BW
+    # # # ======= Task 2 =======
+    # # # Limited BW
     # fixed_limited_bw = rel_speedup(
     #     with_pref="report/data/task2_1C_limitBW_ghb_pccs_fixed_pd.csv",
     #     no_pref="report/data/task2_1C_limitBW_nopref.csv",
@@ -174,26 +227,51 @@ if __name__ == "__main__":
     # # # Full BW vs Limited BW
     # # compare_rel_speedups(df_full=fixed_full_bw, df_limited=fixed_limited_bw)
 
-    # # ======= Task 3 =======
-    # adaptive_full_bw = rel_speedup(
-    #     with_pref="report/data/task3_1C_fullBW_ghb_pccs_adaptive_pd.csv",
-    #     no_pref="report/data/task0_1C_fullBW_nopref.csv",
-    #     plot=False,
-    # )
+    # ======= Task 3 =======
+    adaptive_full_bw = rel_speedup(
+        with_pref="report/data/task3_1C_fullBW_ghb_pccs_adaptive_pd.csv",
+        no_pref="report/data/task0_1C_fullBW_nopref.csv",
+        plot=False,
+    )
 
-    # ======= Task 4 =======
-    print("ADAPTIVE")
     adaptive_limited_bw = rel_speedup(
-        with_pref="report/data/task4_1C_limitBW_abop.csv",
+        with_pref="report/data/task3_1C_limitBW_ghb_pccs_adaptive_pd.csv",
         no_pref="report/data/task2_1C_limitBW_nopref.csv",
         plot=False,
     )
 
-    # print("FIXED")
-    # adaptive_limited_bw = rel_speedup(
-    #     with_pref="report/data/task4_1C_limitBW_bop.csv",
-    #     no_pref="report/data/task2_1C_limitBW_nopref.csv",
-    #     plot=True,
-    # )
+    # ======= Bonus Task =======
+
+    pythia_full_bw = rel_speedup(
+        with_pref="report/data/task5_1C_fullBW_pythia.csv",
+        no_pref="report/data/task0_1C_fullBW_nopref.csv",
+        plot=False,
+    )
+
+    pythia_limited_bw = rel_speedup(
+        with_pref="report/data/task5_1C_limitBW_pythia.csv",
+        no_pref="report/data/task2_1C_limitBW_nopref.csv",
+        plot=False,
+    )
+
+    print(pythia_limited_bw)
+
+    # Compare Adaptive vs Pythia (Full BW)
+    compare_prefetchers(
+        adaptive_full_bw,
+        pythia_full_bw,
+        "GHB Adaptive (Full BW)",
+        "Pythia (Full BW)",
+        "IPC Speedup Comparison: GHB Adaptive vs Pythia (Full BW)",
+    )
+
+    # Compare Adaptive vs Pythia (Limited BW)
+    compare_prefetchers(
+        adaptive_limited_bw,
+        pythia_limited_bw,
+        "GHB Adaptive (Limited BW)",
+        "Pythia (Limited BW)",
+        "IPC Speedup Comparison: GHB Adaptive vs Pythia (Limited BW)",
+    )
 
     plt.show()
