@@ -228,13 +228,26 @@ if __name__ == "__main__":
     # # compare_rel_speedups(df_full=fixed_full_bw, df_limited=fixed_limited_bw)
 
     # ======= Task 3 =======
-    adaptive_full_bw = rel_speedup(
+    ghb_adaptive_full_bw = rel_speedup(
         with_pref="report/data/task3_1C_fullBW_ghb_pccs_adaptive_pd.csv",
         no_pref="report/data/task0_1C_fullBW_nopref.csv",
         plot=False,
     )
 
-    adaptive_limited_bw = rel_speedup(
+    ghb_adaptive_limited_bw = rel_speedup(
+        with_pref="report/data/task3_1C_limitBW_ghb_pccs_adaptive_pd.csv",
+        no_pref="report/data/task2_1C_limitBW_nopref.csv",
+        plot=False,
+    )
+
+    # ======= Task 4 =======
+    ghb_adaptive_full_bw = rel_speedup(
+        with_pref="report/data/task3_1C_fullBW_ghb_pccs_adaptive_pd.csv",
+        no_pref="report/data/task0_1C_fullBW_nopref.csv",
+        plot=False,
+    )
+
+    ghb_adaptive_limited_bw = rel_speedup(
         with_pref="report/data/task3_1C_limitBW_ghb_pccs_adaptive_pd.csv",
         no_pref="report/data/task2_1C_limitBW_nopref.csv",
         plot=False,
@@ -258,7 +271,7 @@ if __name__ == "__main__":
 
     # Compare Adaptive vs Pythia (Full BW)
     compare_prefetchers(
-        adaptive_full_bw,
+        ghb_adaptive_full_bw,
         pythia_full_bw,
         "GHB Adaptive (Full BW)",
         "Pythia (Full BW)",
@@ -267,7 +280,7 @@ if __name__ == "__main__":
 
     # Compare Adaptive vs Pythia (Limited BW)
     compare_prefetchers(
-        adaptive_limited_bw,
+        ghb_adaptive_limited_bw,
         pythia_limited_bw,
         "GHB Adaptive (Limited BW)",
         "Pythia (Limited BW)",
