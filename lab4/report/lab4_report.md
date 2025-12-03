@@ -112,9 +112,26 @@ The bar graph for the limited BW system shows notably decreased IPC speedups for
 
 The prefetching accuracy jumps by over `18%` in the geometric mean, because the prefetcher is more careful about which prefetches are issued. This is also reflected upon in the PPKI bar chart, with much fewer prefetches issued by the system-aware prefetcher.
 
-![Task 3: System Aware strided GHB prefetcher (1 CPU, *full* BW)](./img/task3_ghb_pccs_adaptive_fullbw.eps){#fig:t3_fullbw}
+![Task 3: System-Aware Strided GHB Prefetcher (1 CPU, *Full* BW)](./img/task3_ghb_pccs_adaptive_fullbw.eps){#fig:t3_fullbw}
 
-![Task 3: System Aware strided GHB prefetcher (1 CPU, *limited* BW)](./img/task3_ghb_pccs_adaptive_limitbw.eps){#fig:t3_limitbw}
+![Task 3: System-Aware Strided GHB Prefetcher (1 CPU, *Limited* BW)](./img/task3_ghb_pccs_adaptive_limitbw.eps){#fig:t3_limitbw}
+
+\newpage
+
+## Task 4/4: Design Your Own Prefetcher
+
+TBD
+
+\newpage
+
+
+## Bonus Task: Comparison Against a State-Of-The-Art Prefetcher
+
+In the bonus task, I compare Pythia [@pythia], a state-of-the-art prefetcher against the other prefetchers I designed in this lab.
+
+![Bonus Task: IPC Speedup Comparison (1 CPU, *full* BW)](./img/bonus_pythia_full.eps){#fig:bt_fullbw}
+
+![Bonus Task: IPC Speedup Comparison (1 CPU, *Limited* BW)](./img/bonus_pythia_limited.eps){#fig:bt_limitbw}
 
 \newpage
 ## Citations
