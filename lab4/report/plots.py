@@ -36,7 +36,7 @@ def task_0():
             va="bottom",
         )
 
-    plt.ylabel("IPC Speedup")
+    plt.ylabel("IPC")
     plt.xticks(rotation=45, ha="right")
     plt.tight_layout()
 
@@ -79,7 +79,7 @@ def rel_speedup(with_pref: str, no_pref: str, plot: bool) -> pd.DataFrame:
         }
     )
     merged = pd.concat([merged, geomean_row], ignore_index=True)
-
+    print(merged)
     print(
         f"geomean speedup: {geomean_speedup} geomean accuracy: {geomean_accuracy} geomean ppki: {geomean_ppki} "
     )
@@ -155,13 +155,13 @@ if __name__ == "__main__":
     # No prefetchers
     # task_0()
 
-    # # ======= Task 1 =======
-    # # Full BW
-    # fixed_full_bw = rel_speedup(
-    #     with_pref="report/data/task1_1C_fullBW_ghb_pccs_fixed_pd_20b_ip_tag.csv",
-    #     no_pref="report/data/task0_1C_fullBW_nopref.csv",
-    #     plot=True,
-    # )
+    # ======= Task 1 =======
+    # Full BW
+    fixed_full_bw = rel_speedup(
+        with_pref="report/data/task1_1C_fullBW_ghb_pccs_fixed_pd_20b_ip_tag.csv",
+        no_pref="report/data/task0_1C_fullBW_nopref.csv",
+        plot=False,
+    )
 
     # # ======= Task 2 =======
     # # Limited BW
@@ -181,10 +181,10 @@ if __name__ == "__main__":
     #     plot=True,
     # )
 
-    adaptive_limited_bw = rel_speedup(
-        with_pref="report/data/task3_1C_limitBW_ghb_pccs_adaptive_pd.csv",
-        no_pref="report/data/task2_1C_limitBW_nopref.csv",
-        plot=True,
-    )
+    # adaptive_limited_bw = rel_speedup(
+    #     with_pref="report/data/task3_1C_limitBW_ghb_pccs_adaptive_pd.csv",
+    #     no_pref="report/data/task2_1C_limitBW_nopref.csv",
+    #     plot=True,
+    # )
 
     plt.show()
