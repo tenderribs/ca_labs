@@ -44,13 +44,13 @@ In Task 1 I implemented a GHB-based stride prefetcher [@ghb] for the L2C as clos
 : Per-trace IPC for GHB PC/CS with 20b and 56b wide IT tags (1 cpu, full BW) {#tbl:ghb_pccs_it_width}
 \endgroup
 
-![Task 1: IPC speedup, prefetch accuracy, and prefetches per thousand instructions (PPKI) of strided GHB prefetcher relative to system without a prefetcher (1 CPU, full BW)](./img/task1_ghb_pccs_fixed_fullbw.eps){#fig:t1_ghbpccs_fx_fullbw}
+![Task 1: IPC speedup, prefetch accuracy, and prefetches per thousand instructions (PPKI) of strided GHB prefetcher  (1 CPU, full BW)](./img/task1_ghb_pccs_fixed_fullbw.eps){#fig:t1_ghbpccs_fx_fullbw}
 
 The per-workload IPC speedups, prefetching accuracies and prefetches per thousand instructions (PPKI) caused by the strided GHB prefetcher in the L2C are plotted in [@fig:t1_ghbpccs_fx_fullbw]. The IPC speedup is simply the ratio of the IPC measured with the prefetcher and the IPC without the prefetcher. Next, the accuracy is defined as the ratio of prefetches reported by Champsim logs as being "useful" (`l2c_prefetch_useful`) and the total number of issued prefetches (`l2c_prefetch_issued`).
 
 ### Results
 
-The utility of the prefetcher is highly heterogenous for the different types of workloads. As explained in the following paragraphs, this indicates that the strided GHB prefetcher is only useful for workloads with access patterns that play to its strengths.
+The utility of the prefetcher is highly heterogenous for the different types of workloads. As explained in the following paragraphs, this indicates that the strided GHB prefetcher is only useful for workloads with access patterns that play to its strengths. Notice that the IPC speedup is always greater than 1, implying that the prefetcher gains a strict performance increase.
 
 ##### GAP Workloads
 `bfs-14` was the workload with the largest IPC speedup. It was also the workload with the largest amount of prefetches issued, at the highest accuracy. The large number of prefetches issued indicate that the GAP workloads (graph analytics) can benefit a lot from a strided GHB prefetcher, considering they are most likely traversing neighboring nodes lists.
@@ -64,34 +64,57 @@ In this task, I investigate the effects of limited main memory bandwidth on the 
 
 ### Results
 
-![Task 2: IPC speedup, prefetch accuracy, and prefetches per thousand instructions (PPKI) of strided GHB prefetcher relative to system without a prefetcher (1 CPU, limited BW)](./img/task2_ghb_pccs_fixed_limitbw.eps){#fig:t2_ghbpccs_fx_limbw}
+![Task 2: IPC speedup, prefetch accuracy, and prefetches per thousand instructions (PPKI) of strided GHB prefetcher  (1 CPU, limited BW)](./img/task2_ghb_pccs_fixed_limitbw.eps){#fig:t2_ghbpccs_fx_limbw}
 
+The performance of the strided GHB prefetcher in a memory bandwidth limited system is plotted in [@fig:t2_ghbpccs_fx_limbw]. There are a few observations to make.
 
+- First, the IPC speedups measured in the limited BW system are strictly lower than those from the unconstrained full BW system.
 
-<!-- ## Task 2 AXPY
+- Next, the IPC speedup on the `charlie_3` workload is below 1, indicating a performance decrease. It achieves the lowest IPC speedup of all workloads. This is most likely due to the combinations of large PPKI, low accuracy and limited bandwidth availability. The largest IPC speedup is observed in the `bfs-14` workload.
 
-This task is concerned with quantifying the performance scaling of PIM threads (tasklets). To this end, the AXPY operation ($y= y + alpha ×x$) is computed in a distributed fashion on the DPUs.
+- Finally, the largest IPC speedup decreases are on the sssp-10 and sssp-14 traces with `-0.104` and `-0.106` respectively. The smallest IPC speedup decrease is on the `cc-13` workload with `-0.002`.
 
-### Implementation Details
+     <!-- table for reference of diff full - limited
+     bc-0    0.032
+    bc-12    0.042
+   bfs-10   0.015
+   bfs-14   0.006
+    cc-13   0.002
+    cc-14   0.006
+     cc-5   0.013
+charlie_0   0.013
+charlie_1   0.017
+charlie_2   0.018
+charlie_3   0.021
+charlie_4   0.018
+  sssp-10   0.104
+  sssp-14   0.106
+  GEOMEAN   0.029
+  -->
 
-After placing both input vectors $x$ and $y$ in the DPUs MRAM heap, the host triggers the distributed computation. Each tasklet allocates a section of memory of fixed size in the DPUs WRAM using `mem_alloc`. Then disjoint blocks of the vectors are copied from the MRAM into the previously allocated tasklet WRAM space using `mram_read`. Special care must be taken to ensure this transfer's size is between 8 and 2048 bytes and aligned by 8 bytes. The AXPY operation is performed on the data block in WRAM and subsequently written back to MRAM using `mram_write`. To conclude, the host copies and aggregates the partial results from each DPU.
+\newpage
 
-Due to hardware limitations, the maximum number of tasklets per DPU is 24. The allocated tasklet WRAM block's size has to be chosen such that each tasklet's data can fit inside the WRAM, which becomes an issue at larger numbers of tasklets. It is beneficial to maximize the block size, since this reduces the copying transfer overheads between the MRAM and WRAM. I found the highest possible block size to be 512B, using at most `2 * 24 * 512B = 24'576B` of the `64KB` of WRAM,  which left enough memory for the remaining variables. This configuration produces correct results for any number of tasklets and DPUs.
+## Task 3/4: System-Aware Prefetcher Design
 
-### Evaluation
+As suggested in the task description, the strided GHB prefetcher performs worse in the bandwidth limited system due to the higher cost of speculative prefetches wasting bandwidth. Task 3 therefore is concerned with implementing system feedback, so that the prefetcher throttles its aggressiveness based on a heuristic scheme as laid out in the task description.
 
-In [@fig:inst_vs_tlet_cnt], the number of executed instructions per tasklet is plotted against the number of tasklets. For this experiment, two 16MB `uint32_t` input vectors were distributed among 32 DPUs and 64 DPUs. Scaling the number of tasklets reduces the instructions executed on each tasklet, but the relationship is non-linear and exhibits diminishing returns.
+### Results
 
-![The number of executed instructions per tasklet decreases non-linearly with tasklet count. Using more DPUs (64 vs 32) reduces instructions per tasklet proportionally, as the total workload is distributed across more processing elements.](./plots/t2_inst_count_per_tasklet_vs_tasklet_count.eps){#fig:inst_vs_tlet_cnt}
+The performance metrics of the system aware strided GHB prefetcher in the full BW system and limited BW system are plotted in [@fig:t3_fullbw] and [@fig:t3_limitbw] respectively.
 
+#### Full Bandwidth System
 
-### Analysis and Observations
+The bar graph for the full BW system shows that the system-aware prefetcher's accuracy improves on almost all workloads. The IPC speedup values are identical to those of the system-unaware prefetcher.
 
-As suggested by the line plot in [@fig:inst_vs_tlet_cnt], the instruction count per tasklet doesn't decrease linearly in the number of tasklets. In fact the kernel execution time on the DPU actually increases with the number of tasklets involved in computation. This suggests that copying data between MRAM and WRAM incurs large costs, that negate the benefits of dividing the workload among tasklets.
+#### Limited Bandwidth System
 
-Therefore for the AXPY kernel with 512-byte blocks, adding tasklets beyond a small count yields diminishing or negative returns due to fixed overheads and memory contention. A performance speedup can instead be achieved by leveraging parallelism in the number of DPUs allocated for computation. The instruction count per tasklet for 64 DPUs consistently is half that of the one with 32 DPUs.
- -->
+The bar graph for the limited BW system shows notably decreased IPC speedups for the system-aware GHB prefetcher on the `bfs-10` and `bfs-14` workloads. Otherwise the IPC speedups either increase, or remain constant. The geometric mean of the IPC speedup decreases by a lower amount than the system-unaware prefetcher in the limited BW environent.
 
+The prefetching accuracy jumps by over `18%` in the geometric mean, because the prefetcher is more careful about which prefetches are issued. This is also reflected upon in the PPKI bar chart, with much fewer prefetches issued by the system-aware prefetcher.
+
+![Task 3: System Aware strided GHB prefetcher (1 CPU, *full* BW)](./img/task3_ghb_pccs_adaptive_fullbw.eps){#fig:t3_fullbw}
+
+![Task 3: System Aware strided GHB prefetcher (1 CPU, *limited* BW)](./img/task3_ghb_pccs_adaptive_limitbw.eps){#fig:t3_limitbw}
 
 \newpage
 ## Citations

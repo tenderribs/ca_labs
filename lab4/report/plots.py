@@ -79,7 +79,7 @@ def rel_speedup(with_pref: str, no_pref: str, plot: bool) -> pd.DataFrame:
         }
     )
     merged = pd.concat([merged, geomean_row], ignore_index=True)
-    print(merged)
+    # print(merged)
     print(
         f"geomean speedup: {geomean_speedup} geomean accuracy: {geomean_accuracy} geomean ppki: {geomean_ppki} "
     )
@@ -163,13 +163,22 @@ if __name__ == "__main__":
         plot=False,
     )
 
+    print("fixed_full_bw")
+    print(fixed_full_bw)
+
     # # ======= Task 2 =======
     # # Limited BW
-    # fixed_limited_bw = rel_speedup(
-    #     with_pref="report/data/task2_1C_limitBW_ghb_pccs_fixed_pd.csv",
-    #     no_pref="report/data/task2_1C_limitBW_nopref.csv",
-    #     plot=True,
-    # )
+    fixed_limited_bw = rel_speedup(
+        with_pref="report/data/task2_1C_limitBW_ghb_pccs_fixed_pd.csv",
+        no_pref="report/data/task2_1C_limitBW_nopref.csv",
+        plot=False,
+    )
+
+    print("fixed_full_bw")
+    print(fixed_full_bw)
+
+    print("diff")
+    print(round(fixed_full_bw["speedup"] - fixed_limited_bw["speedup"], 3))
 
     # # # Full BW vs Limited BW
     # # compare_rel_speedups(df_full=fixed_full_bw, df_limited=fixed_limited_bw)
