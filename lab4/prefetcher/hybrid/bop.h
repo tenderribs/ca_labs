@@ -39,13 +39,11 @@ class bop : public champsim::modules::prefetcher
 
 public:
   using prefetcher::prefetcher;
-  bool prefetch_enabled = true;
 
-  std::vector<uint64_t> generated_candidates;
-  const std::vector<uint64_t>& get_candidates() const { return generated_candidates; }
-  void clear_candidates() { generated_candidates.clear(); }
-
-  int get_best_score() const;
+  // hybrid sub-prefetcher related members
+  bool hybrid_mode = false;    // select if GHB pref. is being used as part of hybrid pref. or standalone
+  uint64_t best_line;          // best candidate line found by BOP to be prefetched
+  bool valid_prefetch = false; // does best_line meet conditions for hybrid prefetcher to issue prefetch?
 
   void issue_prefetch(champsim::address addr, bool cache_hit, uint32_t metadata_in);
   void prefetcher_initialize();

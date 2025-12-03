@@ -21,7 +21,6 @@ void bop::prefetcher_initialize()
   rr_table.resize(RR_TABLE_SIZE, 0);
   scores.resize(SCORE_TABLE_SIZE, 0);
 
-  current_degree = 1;
   best_offset = 1; // Default to next line
 
   round_counter = 0;
@@ -57,12 +56,12 @@ uint32_t bop::prefetcher_cache_fill(champsim::address addr, long set, long way, 
 uint32_t bop::prefetcher_cache_operate(champsim::address addr, champsim::address ip, uint8_t cache_hit, bool useful_prefetch, access_type type,
                                        uint32_t metadata_in)
 {
+  valid_prefetch = false; // reset signal to hybrid prefetcher
+
   // only operate on cache misses or useful prefetch fills
   if (cache_hit && !useful_prefetch) {
     return metadata_in;
   }
-
-  clear_candidates(); // RESET for this cycle
 
   // Normalize
   uint64_t current_line = addr.to<uint64_t>() >> LOG2_BLOCK_SIZE;
@@ -102,12 +101,7 @@ uint32_t bop::prefetcher_cache_operate(champsim::address addr, champsim::address
     best_offset = candidates[score_indices[0].second];
 
     // Check Threshold
-    if (score_indices[0].first <= BAD_SCORE) {
-      current_degree = 0; // Disable prefetch temporarily
-    } else {
-      // If score is good, ensure we are enabled (so Part 3 can adjust degree)
-      current_degree = 1;
-    }
+    bool = ;
 
     // Reset
     std::fill(scores.begin(), scores.end(), 0);
@@ -115,22 +109,11 @@ uint32_t bop::prefetcher_cache_operate(champsim::address addr, champsim::address
   }
 
   // Part 3: Prefetch Issue
-  if (prefetch_enabled && current_degree > 0) {
+  if (score_indices[0].first >= BAD_SCORE) {
     issue_prefetch(addr, cache_hit ? true : false, metadata_in);
   }
 
   return metadata_in;
-}
-
-int bop::get_best_score() const
-{
-  // Find max score
-  int max_score = 0;
-  for (int s : scores) {
-    if (s > max_score)
-      max_score = s;
-  }
-  return max_score;
 }
 
 void bop::issue_prefetch(champsim::address addr, bool cache_hit, uint32_t metadata_in)
@@ -140,13 +123,12 @@ void bop::issue_prefetch(champsim::address addr, bool cache_hit, uint32_t metada
 
   // Page Boundary Check
   if ((pf_line >> (LOG2_PAGE_SIZE - LOG2_BLOCK_SIZE)) == (current_line >> (LOG2_PAGE_SIZE - LOG2_BLOCK_SIZE))) {
-
-    // If we are in "Hybrid Mode" (prefetch_enabled is false),
-    // we just store the candidate for the controller.
-    if (!prefetch_enabled) {
-      generated_candidates.push_back(pf_line);
+    if (hybrid_mode) {
+      // expose "readiness for real prefetch best_line" to hybrid controller
+      valid_prefetch = true;
+      best_line = pf_line;
     } else {
-      // Standalone mode
+      // Standalone mode, actually issue the request
       prefetch_line(pf_line << LOG2_BLOCK_SIZE, cache_hit, metadata_in);
     }
   }

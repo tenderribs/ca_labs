@@ -30,7 +30,7 @@ void ghb::prefetcher_initialize()
 }
 
 uint32_t ghb::prefetcher_cache_operate(champsim::address addr, champsim::address ip, uint8_t cache_hit, bool useful_prefetch, access_type type,
-                                            uint32_t metadata_in)
+                                       uint32_t metadata_in)
 {
   (void)cache_hit;
   (void)useful_prefetch;
@@ -48,7 +48,6 @@ uint32_t ghb::prefetcher_cache_operate(champsim::address addr, champsim::address
 
   // Reset state
   pending_prefetches.clear();
-  is_confident = false;
 
   if (it_entry.valid && it_entry.tag == ip_tag) {
     prev_ptr = sanitize_pointer(it_entry.ghb_ptr, ip_tag);
@@ -74,13 +73,6 @@ uint32_t ghb::prefetcher_cache_operate(champsim::address addr, champsim::address
     const int64_t stride2 = static_cast<int64_t>(history[0]) - static_cast<int64_t>(history[1]);
 
     if (stride1 == stride2 && stride1 != 0) {
-      // Detected constant stride.
-      if (it_entry.confidence < 3) it_entry.confidence++;
-
-      // Only declare confidence if we have seen this stride pattern consistently
-      if (it_entry.confidence >= 2) {
-        is_confident = true;
-      }
       for (std::size_t i = 0; i < current_prefetch_degree; ++i) {
         // Issue prefetches to addresses: A + l*d, A + (l+1)*d, ..., A + (l+n-1)*d
         const int64_t pf_block = static_cast<int64_t>(block) + stride1 * static_cast<int64_t>(PREFETCH_DISTANCE + i);
@@ -96,8 +88,6 @@ uint32_t ghb::prefetcher_cache_operate(champsim::address addr, champsim::address
           pending_prefetches.push_back(champsim::address{pf_addr});
         }
       }
-    } else {
-      it_entry.confidence = 0;
     }
   }
 
