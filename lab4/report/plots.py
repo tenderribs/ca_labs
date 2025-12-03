@@ -241,16 +241,44 @@ if __name__ == "__main__":
     )
 
     # ======= Task 4 =======
-    ghb_adaptive_full_bw = rel_speedup(
-        with_pref="report/data/task3_1C_fullBW_ghb_pccs_adaptive_pd.csv",
+    bop_full_bw = rel_speedup(
+        with_pref="report/data/task4_1C_fullBW_bop.csv",
         no_pref="report/data/task0_1C_fullBW_nopref.csv",
         plot=False,
     )
 
-    ghb_adaptive_limited_bw = rel_speedup(
-        with_pref="report/data/task3_1C_limitBW_ghb_pccs_adaptive_pd.csv",
+    bop_limited_bw = rel_speedup(
+        with_pref="report/data/task4_1C_limitBW_bop.csv",
         no_pref="report/data/task2_1C_limitBW_nopref.csv",
         plot=False,
+    )
+
+    # hybrid
+    hybrid_full_bw = rel_speedup(
+        with_pref="report/data/task4_1C_fullBW.tournament2.csv",
+        no_pref="report/data/task0_1C_fullBW_nopref.csv",
+        plot=False,
+    )
+
+    hybrid_limited_bw = rel_speedup(
+        with_pref="report/data/task4_1C_limitBW.tournament2.csv",
+        no_pref="report/data/task2_1C_limitBW_nopref.csv",
+        plot=False,
+    )
+
+    compare_prefetchers(
+        ghb_adaptive_full_bw,
+        hybrid_full_bw,
+        "GHB Adaptive (Full BW)",
+        "Hybrid (Full BW)",
+        "",
+    )
+    compare_prefetchers(
+        ghb_adaptive_limited_bw,
+        hybrid_limited_bw,
+        "GHB Adaptive (Limited BW)",
+        "Hybrid (Limited BW)",
+        "",
     )
 
     # ======= Bonus Task =======
@@ -269,22 +297,22 @@ if __name__ == "__main__":
 
     print(pythia_limited_bw)
 
-    # Compare Adaptive vs Pythia (Full BW)
-    compare_prefetchers(
-        ghb_adaptive_full_bw,
-        pythia_full_bw,
-        "GHB Adaptive (Full BW)",
-        "Pythia (Full BW)",
-        "IPC Speedup Comparison: GHB Adaptive vs Pythia (Full BW)",
-    )
+    # # Compare Adaptive vs Pythia (Full BW)
+    # compare_prefetchers(
+    #     ghb_adaptive_full_bw,
+    #     pythia_full_bw,
+    #     "GHB Adaptive (Full BW)",
+    #     "Pythia (Full BW)",
+    #     "IPC Speedup Comparison: GHB Adaptive vs Pythia (Full BW)",
+    # )
 
-    # Compare Adaptive vs Pythia (Limited BW)
-    compare_prefetchers(
-        ghb_adaptive_limited_bw,
-        pythia_limited_bw,
-        "GHB Adaptive (Limited BW)",
-        "Pythia (Limited BW)",
-        "IPC Speedup Comparison: GHB Adaptive vs Pythia (Limited BW)",
-    )
+    # # Compare Adaptive vs Pythia (Limited BW)
+    # compare_prefetchers(
+    #     ghb_adaptive_limited_bw,
+    #     pythia_limited_bw,
+    #     "GHB Adaptive (Limited BW)",
+    #     "Pythia (Limited BW)",
+    #     "IPC Speedup Comparison: GHB Adaptive vs Pythia (Limited BW)",
+    # )
 
     plt.show()
