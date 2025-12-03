@@ -155,45 +155,52 @@ if __name__ == "__main__":
     # No prefetchers
     # task_0()
 
-    # ======= Task 1 =======
-    # Full BW
-    fixed_full_bw = rel_speedup(
-        with_pref="report/data/task1_1C_fullBW_ghb_pccs_fixed_pd_20b_ip_tag.csv",
-        no_pref="report/data/task0_1C_fullBW_nopref.csv",
-        plot=False,
-    )
+    # # ======= Task 1 =======
+    # # Full BW
+    # fixed_full_bw = rel_speedup(
+    #     with_pref="report/data/task1_1C_fullBW_ghb_pccs_fixed_pd_20b_ip_tag.csv",
+    #     no_pref="report/data/task0_1C_fullBW_nopref.csv",
+    #     plot=False,
+    # )
 
-    print("fixed_full_bw")
-    print(fixed_full_bw)
-
-    # # ======= Task 2 =======
-    # # Limited BW
-    fixed_limited_bw = rel_speedup(
-        with_pref="report/data/task2_1C_limitBW_ghb_pccs_fixed_pd.csv",
-        no_pref="report/data/task2_1C_limitBW_nopref.csv",
-        plot=False,
-    )
-
-    print("fixed_full_bw")
-    print(fixed_full_bw)
-
-    print("diff")
-    print(round(fixed_full_bw["speedup"] - fixed_limited_bw["speedup"], 3))
+    # # # ======= Task 2 =======
+    # # # Limited BW
+    # fixed_limited_bw = rel_speedup(
+    #     with_pref="report/data/task2_1C_limitBW_ghb_pccs_fixed_pd.csv",
+    #     no_pref="report/data/task2_1C_limitBW_nopref.csv",
+    #     plot=False,
+    # )
 
     # # # Full BW vs Limited BW
     # # compare_rel_speedups(df_full=fixed_full_bw, df_limited=fixed_limited_bw)
 
-    # # ======= Task 3 =======
-    # adaptive_full_bw = rel_speedup(
-    #     with_pref="report/data/task3_1C_fullBW_ghb_pccs_adaptive_pd.csv",
-    #     no_pref="report/data/task0_1C_fullBW_nopref.csv",
-    #     plot=True,
-    # )
+    # ======= Task 3 =======
+    adaptive_full_bw = rel_speedup(
+        with_pref="report/data/task3_1C_fullBW_ghb_pccs_adaptive_pd.csv",
+        no_pref="report/data/task0_1C_fullBW_nopref.csv",
+        plot=False,
+    )
 
-    # adaptive_limited_bw = rel_speedup(
-    #     with_pref="report/data/task3_1C_limitBW_ghb_pccs_adaptive_pd.csv",
-    #     no_pref="report/data/task2_1C_limitBW_nopref.csv",
-    #     plot=True,
-    # )
+    adaptive_limited_bw = rel_speedup(
+        with_pref="report/data/task3_1C_limitBW_ghb_pccs_adaptive_pd.csv",
+        no_pref="report/data/task2_1C_limitBW_nopref.csv",
+        plot=False,
+    )
+
+    # ======= Bonus Task =======
+
+    pythia_full_bw = rel_speedup(
+        with_pref="report/data/task5_1C_fullBW_pythia.csv",
+        no_pref="report/data/task0_1C_fullBW_nopref.csv",
+        plot=False,
+    )
+
+    pythia_limited_bw = rel_speedup(
+        with_pref="report/data/task5_1C_limitBW_pythia.csv",
+        no_pref="report/data/task2_1C_limitBW_nopref.csv",
+        plot=False,
+    )
+
+    print(pythia_limited_bw)
 
     plt.show()
