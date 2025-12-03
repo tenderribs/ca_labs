@@ -27,6 +27,7 @@ void ghb::prefetcher_initialize()
   last_pf_issued = 0;
   last_pf_useful = 0;
   current_prefetch_degree = MAX_DEGREE; // Start with max degree
+  hybrid_mode = false;
 }
 
 uint32_t ghb::prefetcher_cache_operate(champsim::address addr, champsim::address ip, uint8_t cache_hit, bool useful_prefetch, access_type type,
@@ -82,10 +83,10 @@ uint32_t ghb::prefetcher_cache_operate(champsim::address addr, champsim::address
 
         const uint64_t pf_addr = static_cast<uint64_t>(pf_block) << LOG2_BLOCK_SIZE;
 
-        if (prefetch_enabled) {
-          prefetch_line(champsim::address{pf_addr}, true, 0);
-        } else {
+        if (hybrid_mode) {
           pending_prefetches.push_back(champsim::address{pf_addr});
+        } else {
+          prefetch_line(champsim::address{pf_addr}, true, 0);
         }
       }
     }
@@ -106,13 +107,6 @@ uint32_t ghb::prefetcher_cache_operate(champsim::address addr, champsim::address
   head_counter = (head_counter + 1) & ((1 << GHB_PTR_BITS) - 1);
 
   return metadata_in;
-}
-
-void ghb::issue_pending_prefetches(uint32_t metadata_in)
-{
-  for (const auto& addr : pending_prefetches) {
-    prefetch_line(addr, true, metadata_in);
-  }
 }
 
 void ghb::prefetcher_cycle_operate()

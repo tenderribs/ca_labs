@@ -6,12 +6,14 @@
 
 void hybrid::prefetcher_initialize()
 {
-  ghb_pref.hybrid_mode = true;
-  bop_pref.hybrid_mode = true;
-
   ghb_pref.prefetcher_initialize();
   bop_pref.prefetcher_initialize();
+
   tournament_counter = 5; // Neutral start
+
+  // override subprefetcher defaults set by prefetcher_initialize()
+  ghb_pref.hybrid_mode = true;
+  bop_pref.hybrid_mode = true;
 }
 
 // Helper to track virtual predictions
@@ -75,13 +77,11 @@ uint32_t hybrid::prefetcher_cache_operate(champsim::address addr, champsim::addr
     update_shadow_table(addr_obj.to<uint64_t>() >> LOG2_BLOCK_SIZE, 1);
   }
   // BOP:
-  if (bop.valid_prefetch) {
+  if (bop_pref.best_line_valid) {
     update_shadow_table(line, 2);
   }
 
   // 4. ARBITRATION
-  uint8_t bw = get_dram_bw();
-
   bool issue_ghb = false;
   bool issue_bop = false;
 
@@ -103,18 +103,24 @@ uint32_t hybrid::prefetcher_cache_operate(champsim::address addr, champsim::addr
     }
   }
 
-  if (issue_bop) {
-    // BOP requires a sanity check on its own score (must be > BAD_SCORE)
-    // Assuming you exposed get_best_score() in bop.h
-    if (bop_pref.get_best_score() > 1) {
-      for (uint64_t line : bop_raw) {
-        prefetch_line(champsim::address{line << LOG2_BLOCK_SIZE}, true, metadata_in);
-        bop_prefetches++;
-      }
-    }
+  if (issue_bop && bop_pref.best_line_valid) {
+    prefetch_line(champsim::address{best_line << LOG2_BLOCK_SIZE}, true, metadata_in);
+    bop_prefetches++;
   }
 
   return metadata_in;
+}
+
+void hybrid::prefetcher_cycle_operate()
+{
+  // allow ghb prefetcher to update accuracy measurements
+  ghb_pref.prefetcher_cycle_operate();
+}
+
+uint32_t hybrid::prefetcher_cache_fill(champsim::address addr, long set, long way, uint8_t prefetch, champsim::address evicted_addr, uint32_t metadata_in)
+{
+  // allow the bop prefetcher to update its RR table
+  return bop.prefetcher_cache_fill(addr, set, way, prefetch, evicted_addr, metadata_in)
 }
 
 void hybrid::prefetcher_final_stats()
