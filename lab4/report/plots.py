@@ -150,6 +150,59 @@ def compare_rel_speedups(df_full, df_limited):
     return merged
 
 
+def compare_prefetchers(df1, df2, label1, label2, title):
+    """
+    Plots grouped bars of IPC speedup for two different prefetcher configurations.
+    """
+    # Merge the two dataframes on 'trace'
+    merged = df1[["trace", "speedup"]].merge(
+        df2[["trace", "speedup"]], on="trace", suffixes=("_1", "_2")
+    )
+
+    # Filter out the GEOMEAN row for plotting if desired, or keep it.
+    # Usually plotting GEOMEAN alongside traces is fine.
+
+    x = np.arange(len(merged["trace"]))
+    width = 0.35
+
+    plt.figure(figsize=(12, 6))
+
+    # Plot bars
+    bars1 = plt.bar(
+        x - width / 2, merged["speedup_1"], width, label=label1, color="tab:blue"
+    )
+    bars2 = plt.bar(
+        x + width / 2, merged["speedup_2"], width, label=label2, color="tab:orange"
+    )
+
+    # Add labels and title
+    plt.ylabel("IPC Speedup")
+    # plt.title(title)
+    plt.xticks(x, merged["trace"], rotation=45, ha="right")
+    plt.axhline(1.0, color="black", linewidth=0.8, linestyle="--")
+    plt.legend()
+    plt.grid(axis="y", linestyle="--", alpha=0.7)
+
+    # Add value labels on top of bars
+    def add_labels(bars):
+        for bar in bars:
+            height = bar.get_height()
+            plt.text(
+                bar.get_x() + bar.get_width() / 2.0,
+                height,
+                f"{height:.2f}",
+                ha="center",
+                va="bottom",
+                fontsize=8,
+                # rotation=90,
+            )
+
+    add_labels(bars1)
+    add_labels(bars2)
+
+    plt.tight_layout()
+
+
 if __name__ == "__main__":
     # ======= Task 1 =======
     # No prefetchers
@@ -202,5 +255,23 @@ if __name__ == "__main__":
     )
 
     print(pythia_limited_bw)
+
+    # Compare Adaptive vs Pythia (Full BW)
+    compare_prefetchers(
+        adaptive_full_bw,
+        pythia_full_bw,
+        "GHB Adaptive (Full BW)",
+        "Pythia (Full BW)",
+        "IPC Speedup Comparison: GHB Adaptive vs Pythia (Full BW)",
+    )
+
+    # Compare Adaptive vs Pythia (Limited BW)
+    compare_prefetchers(
+        adaptive_limited_bw,
+        pythia_limited_bw,
+        "GHB Adaptive (Limited BW)",
+        "Pythia (Limited BW)",
+        "IPC Speedup Comparison: GHB Adaptive vs Pythia (Limited BW)",
+    )
 
     plt.show()
