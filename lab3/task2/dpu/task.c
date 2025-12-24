@@ -73,8 +73,9 @@ int main_kernel1() {
     // Initialize a local cache in WRAM to store the MRAM block
     //@@ INSERT WRAM ALLOCATION HERE
     // base addresses where this tasklet will store each transferred block
-    T* wram_base_addr_X = mem_alloc(BLOCK_SIZE);
-    T* wram_base_addr_Y = mem_alloc(BLOCK_SIZE);
+    T* wram_base_addr_X = (T*)(((uintptr_t)mem_alloc(BLOCK_SIZE + 8) + 7) & ~0x7); // force 8-bit alignment
+    T* wram_base_addr_Y = (T*)(((uintptr_t)mem_alloc(BLOCK_SIZE + 8) + 7) & ~0x7);
+
     assert (wram_base_addr_X != NULL && wram_base_addr_Y != NULL);
 
     for (unsigned int byte_index = base_tasklet; byte_index < input_size_dpu_bytes;

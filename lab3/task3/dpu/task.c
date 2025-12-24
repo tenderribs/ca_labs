@@ -15,7 +15,8 @@
 #include "../support/cyclecount.h"
 
 #if (defined(OP_ADD) + defined(OP_SUB) + defined(OP_MULT) + defined(OP_DIV)) != 1
-#error "Define exactly one vector operation (e.g. OP=ADD make)."
+#warning "Define exactly one vector operation (e.g. OP=ADD make). Defaulting to ADD"
+#define OP_ADD
 #endif
 
 // Input and output arguments
@@ -42,11 +43,11 @@ static void arithm_op(T *bufferY, T *bufferX, unsigned int l_size) {
 #elif defined(OP_MULT)
         bufferY[i] = bufferX[i] * bufferY[i];
 #elif defined(OP_DIV)
-    /* Protect integer division from divide-by-zero which causes exception */
+        /* Protect integer division from divide-by-zero which causes exception */
 #if defined(FLOAT) || defined(DOUBLE)
-    bufferY[i] = bufferX[i] / bufferY[i];
+        bufferY[i] = bufferX[i] / bufferY[i];
 #else
-    bufferY[i] = (bufferY[i] != 0) ? (bufferX[i] / bufferY[i]) : (T)0;
+        bufferY[i] = (bufferY[i] != 0) ? (bufferX[i] / bufferY[i]) : (T)0;
 #endif
 #endif
     }
@@ -87,8 +88,9 @@ int main_kernel1() {
     // Initialize a local cache in WRAM to store the MRAM block
     //@@ INSERT WRAM ALLOCATION HERE
     // base addresses where this tasklet will store each transferred block
-    T *wram_base_addr_X = mem_alloc(BLOCK_SIZE);
-    T *wram_base_addr_Y = mem_alloc(BLOCK_SIZE);
+    T* wram_base_addr_X = (T*)(((uintptr_t)mem_alloc(BLOCK_SIZE + 8) + 7) & ~0x7); // force 8-bit alignment
+    T* wram_base_addr_Y = (T*)(((uintptr_t)mem_alloc(BLOCK_SIZE + 8) + 7) & ~0x7);
+
     assert(wram_base_addr_X != NULL && wram_base_addr_Y != NULL);
 
     for (unsigned int byte_index = base_tasklet; byte_index < input_size_dpu_bytes;

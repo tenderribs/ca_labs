@@ -38,7 +38,8 @@ static void read_input(T *A, T *B, unsigned int nr_elements) {
 }
 
 #if (defined(OP_ADD) + defined(OP_SUB) + defined(OP_MULT) + defined(OP_DIV)) != 1
-#error "Define exactly one vector operation (e.g. OP=ADD make)."
+#warning "Define exactly one vector operation (e.g. OP=ADD make). Defaulting to ADD"
+#define OP_ADD
 #endif
 
 // Compute output in the host for verification purposes
@@ -51,12 +52,12 @@ static void axpy_host(T *A, T *B, unsigned int nr_elements) {
 #elif defined(OP_MULT)
         B[i] = A[i] * B[i];
 #elif defined(OP_DIV)
-    /* Protect integer division from divide-by-zero to avoid SIGFPE on CPUs/DPUs for
-     * integer types. For floating point types, keep natural FP semantics. */
+        /* Protect integer division from divide-by-zero to avoid SIGFPE on CPUs/DPUs for
+         * integer types. For floating point types, keep natural FP semantics. */
 #if defined(FLOAT) || defined(DOUBLE)
-    B[i] = A[i] / B[i];
+        B[i] = A[i] / B[i];
 #else
-    B[i] = (B[i] != 0) ? (A[i] / B[i]) : (T)0;
+        B[i] = (B[i] != 0) ? (A[i] / B[i]) : (T)0;
 #endif
 #endif
     }
