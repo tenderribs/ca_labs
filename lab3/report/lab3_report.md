@@ -97,6 +97,7 @@ In this scenario, the highest bandwidth is measured at DPU counts less than 5. T
 - `BROADCAST` delivers the highest CPU→DPU bandwidth, indicating that fixed overheads are better amortized compared to the other transfer methods.
 
 
+\newpage
 
 
 
@@ -130,6 +131,7 @@ Therefore for the AXPY kernel with 512-byte blocks, adding tasklets beyond a sma
 
 
 
+\newpage
 
 
 
@@ -169,6 +171,11 @@ static void arithm_op(T *bufferY, T *bufferX, unsigned int l_size) {
 }
 ```
 
+### Methodology for Result Generation
+
+To ensure reproducibility and automate the evaluation across the wide range of configurations (operations, data types, and tasklet counts), I utilized a Python script (`profile.py`) to manage the build and execution process. This script iterates through the defined parameter space and, for each unique configuration, sets the corresponding environment variables (e.g., `OP=ADD, TYPE=INT32, NR_TASKLETS=16`). It then triggers a rebuild of the project by invoking make. The slightly modified Makefile captures these environment variables and passes them as preprocessor macros (e.g., `-DOP_ADD`) to the compiler. Once compiled, the script executes the host binary, parses the output for performance metrics (such as instruction counts and execution time), and logs the results to a CSV file, which is subsequently used to generate the plots.
+
+
 ### Evaluation
 
 To measure the arithmetic throughput of each combination of data type and arithmetic operation, I measured the number of DPU kernel instructions required to compute 500'000 respective arithmetic operations. The results are plotted in [@fig:inst_vs_arith_op_dtype].
@@ -185,7 +192,7 @@ DPUs provide native hardware support for 32- and 64-bit integer addition and sub
 
 
 
-
+\newpage
 
 
 
