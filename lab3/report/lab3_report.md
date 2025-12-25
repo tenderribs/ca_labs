@@ -124,16 +124,12 @@ In [@fig:inst_vs_tlet_cnt], the number of executed instructions per tasklet is p
 
 ### Analysis and Observations
 
-As suggested by the line plot in [@fig:inst_vs_tlet_cnt], the instruction count per tasklet doesn't decrease linearly in the number of tasklets. In fact the kernel execution time on the DPU actually increases with the number of tasklets involved in computation. This suggests that copying data between MRAM and WRAM incurs large costs, that negate the benefits of dividing the workload among tasklets.
-
-Therefore for the AXPY kernel with 512-byte blocks, adding tasklets beyond a small count yields diminishing or negative returns due to fixed overheads and memory contention. A performance speedup can instead be achieved by leveraging parallelism in the number of DPUs allocated for computation. The instruction count per tasklet for 64 DPUs consistently is half that of the one with 32 DPUs.
-
-
+- As shown in the plot in [@fig:inst_vs_tlet_cnt], the number of instructions executed per tasklet decreases as the number of tasklets increases. The curve follows a clear $1/N$ trend. This behavior confirms that the AXPY workload is very parallelizable and that the work is being effectively divided among the available threads.
+- The instruction count per tasklet for 64 DPUs consistently is half that of the one with 32 DPUs.
+- For the AXPY kernel, adding tasklets beyond around 10 tasklets yields diminishing returns due to fixed overheads and memory transfers. The performance is ultimately likely limited by the bandwidth between WRAM (scratchpad) and the ALU, and the bulk transfers between MRAM and WRAM.
 
 
 \newpage
-
-
 
 
 
@@ -171,6 +167,8 @@ static void arithm_op(T *bufferY, T *bufferX, unsigned int l_size) {
 }
 ```
 
+Transfers between the WRAM and MRAM  (`mram_write()`) and the DPU and host (`dpu_push_xfer`) have a minimum transfer size of 8 bytes. For smaller types (`CHAR`, `SHORT`, `INT32`) a larger chunk of 8 bytes is copied and the host extracts the valid bytes using `memcpy()`.
+
 ### Methodology for Result Generation
 
 To ensure reproducibility and automate the evaluation across the wide range of configurations (operations, data types, and tasklet counts), I utilized a Python script (`profile.py`) to manage the build and execution process. This script iterates through the defined parameter space and, for each unique configuration, sets the corresponding environment variables (e.g., `OP=ADD, TYPE=INT32, NR_TASKLETS=16`). It then triggers a rebuild of the project by invoking make. The slightly modified Makefile captures these environment variables and passes them as preprocessor macros (e.g., `-DOP_ADD`) to the compiler. Once compiled, the script executes the host binary, parses the output for performance metrics (such as instruction counts and execution time), and logs the results to a CSV file, which is subsequently used to generate the plots.
@@ -190,8 +188,6 @@ DPUs provide native hardware support for 32- and 64-bit integer addition and sub
 
 
 
-
-
 \newpage
 
 
@@ -202,13 +198,32 @@ This task explores intra-DPU synchronization primitives by implementing parallel
 
 ### Implementation Details
 
-For simplicity, my reduction method computes the maximum component of a vector. This means that the vector reduction kernel builds on the MRAM and WRAM transfer patterns established in previous tasks but introduces a new final step: after each tasklet independently finds the maximum of its assigned vector partition, the partial results are merged into an overall maximum value for the DPU. This final reduction step requires synchronization to prevent race conditions and ensure correctness. The final maximum value is computed on the host CPU as the maximum of all partial DPU results.
+For simplicity, my reduction method computes the sum of all vector components. This means that the vector reduction kernel builds on the MRAM and WRAM transfer patterns established in previous tasks but introduces a new final step: after each tasklet independently calculates the sum of its assigned vector partition's elements, the partial results are merged into an overall sum for the DPU. This final reduction step requires synchronization to prevent race conditions and ensure correctness. The final sum value is computed on the host CPU as the sum of all partial DPU results.
 
-Transfers between the WRAM and MRAM  (`mram_write()`) and the DPU and host (`dpu_push_xfer`) have a minimum transfer size of 8 bytes. For smaller types (`CHAR`, `SHORT`, `INT32`) a larger chunk of 8 bytes is copied and the host extracts the valid bytes using `memcpy()`.
+#### Brief Overview of Implemented Final Reduction Methods
+
+##### Single Tasklet Reduction (`SINGLE`)
+
+This method performs the reduction serially using a single thread. All tasklets first synchronize at a global barrier to ensure the parallel vector addition is complete. Once synchronized, Tasklet 0 iterates through the tasklet_partials array, accumulating the results from all other tasklets into a local variable, while other tasklets remain idle.
+
+##### Tree Reduction with Barriers (`TREE_BARRIER`)
+
+This method implements a logarithmic tree-based reduction where the number of active tasklets halves at each step (stride 1, 2, 4, etc.). At each level of the tree, active tasklets add a partial result from a "partner" tasklet at `id + stride`. My implementation places a global `barrier_wait(&my_barrier)` at the end of every reduction step. This forces all tasklets (even those that have finished their part of the reduction) to wake up and synchronize at every level of the tree.
+
+##### Tree Reduction with Handshakes (`TREE_HANDSHAKE`)
+
+Similar to the barrier method, this uses a logarithmic tree structure. However, instead of a global barrier, it uses point-to-point synchronization.
+
+- Receivers (tasklets continuing to the next level) call `handshake_wait_for`(partner) to wait specifically for their partner.
+- Senders (tasklets finishing their work at the current level) call `handshake_notify()` to signal they are ready, and then exit the active reduction process. This allows tasklets to synchronize only with their specific partners rather than the entire group.
+
+##### Mutex-Based Reduction (`MUTEX`)
+
+This method uses a shared global accumulator variable protected by a critical section. Each tasklet independently acquires a lock using `mutex_lock(my_mutex)`, adds its partial result to the global sum, and then releases the lock with `mutex_unlock(my_mutex)`. A final barrier ensures all tasklets have added their values before the result is returned.
 
 ### Evaluation
 
-The four synchronization strategies were evaluated across three vector sizes (16 KB, 1 MB, 16 MB) distributed among 64 DPUs, with tasklet counts ranging from 2 to 24. Figure [@fig:inst_cnt_per_meth] shows the total instruction count per DPU as a function of tasklet count for each method at the three vector sizes.
+The four synchronization strategies were evaluated across three vector sizes (16 KB, 1 MB, 16 MB) distributed among 64 DPUs, with tasklet counts ranging from 4 to 24. For faster runtimes, the underlying data was of the `uint32_t` data-type. Figure [@fig:inst_cnt_per_meth] shows the total instruction count per DPU as a function of tasklet count for each method at the three vector sizes.
 
 `SINGLE`, `TREE_HANDSHAKE`, and `MUTEX` show nearly identical instruction counts at most configurations. This convergence is surprising given their fundamentally different synchronization models. Across all vector sizes, though especially the smallest one, the `TREE_BARRIER` reduction incurs higher instruction counts, with the gap widening as tasklet count increases.
 
@@ -216,33 +231,13 @@ The four synchronization strategies were evaluated across three vector sizes (16
 
 ### Analysis and Observations
 
-At smaller vector sizes, synchronization overhead becomes proportionally more visible. The tree-based barrier method suffers from global synchronization overhead at each tree level. For example, at level 3 (stride=8), only 3 tasklets actively merge values, but all tasklets must synchronize. Handshakes on the other hand eliminate global synchronization by replacing barriers with point-to-point signaling. The single-tasklet method avoids synchronization complexity entirely: it does one `barrier_wait()` at the start, then tasklet 0 sequentially scans at most 24 partial results.
+#### Observations on Instruction Count and Scaling
 
-<!-- ```c
-static T reduce_tree_barrier(unsigned int tasklet_id) {
-    T local = tasklet_partials[tasklet_id];
+- For small input sizes (16 KB), the execution time is dominated by the reduction logic rather than the vector summation itself.
+- For large input sizes (16 MB), the performance difference between reduction methods becomes negligible. The execution is dominated by the $O(N)$ parallel vector addition in the main loop.
+- The `TREE_BARRIER` method consistently exhibits the highest instruction count.
 
-    // wait for all tasklets to put their results in tasklet_partials[tasklet_id]
-    barrier_wait(&my_barrier);
+#### Observations of Instruction Count and Scaling
 
-    // walk through levels of tasklet_partials at increasing strides, coalescing
-    // subresults at given level into single value, till only one value remains
-    for (unsigned int stride = 1; stride < NR_TASKLETS; stride <<= 1) {
-        unsigned int group = stride << 1;
-        if ((tasklet_id % group) == 0) {
-            unsigned int partner = tasklet_id + stride;
-            if (partner < NR_TASKLETS) {
-                // merge local node with partner at same level
-                T other = tasklet_partials[partner];
-                local = max_val(local, other);
-                tasklet_partials[tasklet_id] = local;
-            }
-        }
-
-        // wait for the partial results to accumulate before combining
-        barrier_wait(&my_barrier); // this line incurs large costs.
-    }
-
-    return tasklet_partials[0];
-}
-``` -->
+- The `TREE_BARRIER` method forces global synchronization at every step of the reduction tree. Even tasklets that have finished their work (e.g., in early strides) must wake up and participate in the barrier_wait for all subsequent stages. This results in $O(N \log N)$ total barrier interactions. In contrast, `TREE_HANDSHAKE` allows inactive tasklets to exit the loop immediately, resulting in significantly fewer executed instructions.
+- As the number of tasklets increases to 24, the `MUTEX` and `TREE_BARRIER` methods show steeper increases in overhead compared to `TREE_HANDSHAKE`. `MUTEX` suffers from serialization (contention for the lock), while `TREE_BARRIER` suffers from the increased cost of synchronizing more threads globally.
