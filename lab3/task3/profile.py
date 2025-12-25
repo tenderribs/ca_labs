@@ -26,7 +26,7 @@ def gen_params():
                                 "inp_size": int(inp_size),
                                 "n_dpus": n_dpus,
                                 "dtype": dtype,
-                                "block": 10,
+                                "block": 9,
                                 "op": op,
                                 "n_tsklts": n_tasklets,
                             }
