@@ -27,12 +27,11 @@ __host dpu_arguments_t DPU_INPUT_ARGUMENTS;
 __host dpu_results_t DPU_RESULTS[NR_TASKLETS];
 
 // array where each tasklet places its partially reduced value
-static T tasklet_partials[NR_TASKLETS];
+static T tasklet_partials[NR_TASKLETS] = {0};
 
 #if defined(FINAL_MUTEX)
 MUTEX_INIT(my_mutex);
-static T mutex_accum; // store the intermediate accumulated value
-static T accum_initialized;
+static T mutex_accum = 0; // store the intermediate accumulated value
 #endif
 
 // Barrier
@@ -48,26 +47,20 @@ int main(void) {
 // vec_red: Reduces a vector to its resimum element
 // force_init: whether initialize the result as the first element in the vector
 static void vec_red(T *vec, T *res, unsigned int l_size, uint8_t force_init) {
-    if (force_init) {
-        *res = vec[0];
-    }
-
     for (unsigned int i = 0; i < l_size; i++) {
-        if (vec[i] > *res)
-            *res = vec[i];
+        *res += vec[i];
     }
 }
 
-static inline T max_val(T a, T b) { return (a > b) ? a : b; }
-
 #if defined(FINAL_SINGLE)
 static T reduce_single_tasklet(unsigned int tasklet_id) {
+    barrier_wait(&my_barrier);
+
     if (tasklet_id == 0) {
-        T acc = tasklet_partials[0];
-        for (unsigned int other = 1; other < NR_TASKLETS; ++other) {
-            acc = max_val(acc, tasklet_partials[other]);
+        T acc = 0;
+        for (unsigned int i = 0; i < NR_TASKLETS; ++i) {
+            acc += tasklet_partials[i];
         }
-        tasklet_partials[0] = acc;
         return acc;
     }
 
@@ -75,8 +68,6 @@ static T reduce_single_tasklet(unsigned int tasklet_id) {
 }
 #elif defined(FINAL_TREE_BARRIER)
 static T reduce_tree_barrier(unsigned int tasklet_id) {
-    T local = tasklet_partials[tasklet_id];
-
     // wait for all tasklets to put their results in tasklet_partials[tasklet_id]
     barrier_wait(&my_barrier);
 
@@ -88,9 +79,7 @@ static T reduce_tree_barrier(unsigned int tasklet_id) {
             unsigned int partner = tasklet_id + stride;
             if (partner < NR_TASKLETS) {
                 // merge local node with partner at same level
-                T other = tasklet_partials[partner];
-                local = max_val(local, other);
-                tasklet_partials[tasklet_id] = local;
+                tasklet_partials[tasklet_id] += tasklet_partials[partner];
             }
         }
 
@@ -98,45 +87,34 @@ static T reduce_tree_barrier(unsigned int tasklet_id) {
         barrier_wait(&my_barrier);
     }
 
-    return tasklet_partials[0];
+    return tasklet_partials[tasklet_id];
 }
 #elif defined(FINAL_TREE_HANDSHAKE)
 static T reduce_tree_handshake(unsigned int tasklet_id) {
-    T local = tasklet_partials[tasklet_id];
-
     // tasklet_partials represents a flattened binary heap
     for (unsigned int stride = 1; stride < NR_TASKLETS; stride <<= 1) {
         unsigned int group = stride << 1;
         if ((tasklet_id % group) == 0) {
             unsigned int partner = tasklet_id + stride;
+
             if (partner < NR_TASKLETS) {
                 handshake_wait_for(partner);
 
                 // read and merge partner
-                T other = tasklet_partials[partner];
-                local = max_val(local, other);
-                tasklet_partials[tasklet_id] = local;
+                tasklet_partials[tasklet_id] += tasklet_partials[partner];
             }
         } else {
-            tasklet_partials[tasklet_id] = local;
             handshake_notify();
-            return local;
+            break;
         }
     }
 
-    return local;
+    return tasklet_partials[tasklet_id];
 }
 #elif defined(FINAL_MUTEX)
 static T reduce_mutex(unsigned int tasklet_id) {
-    T local = tasklet_partials[tasklet_id];
-
     mutex_lock(my_mutex);
-    if (!accum_initialized) {
-        mutex_accum = local;
-        accum_initialized = 1;
-    } else {
-        mutex_accum = max_val(mutex_accum, local);
-    }
+    mutex_accum += tasklet_partials[tasklet_id];
     mutex_unlock(my_mutex);
 
     // wait for all tasklets to have acquired the mutex
@@ -173,7 +151,6 @@ int main_kernel1() {
 
 #if defined(FINAL_MUTEX)
         mutex_accum = 0;
-        accum_initialized = 0;
 #endif
     }
     // Barrier
@@ -183,6 +160,8 @@ int main_kernel1() {
     dpu_results_t *result = &DPU_RESULTS[tasklet_id];
     result->count = 0;
     counter_start(&count); // START TIMER
+
+    tasklet_partials[tasklet_id] = 0;
 
     uint32_t input_size_dpu_bytes = DPU_INPUT_ARGUMENTS.size; // Input size per DPU in bytes
     // uint32_t input_size_dpu_bytes_transfer =
@@ -195,7 +174,8 @@ int main_kernel1() {
     // Initialize a local cache in WRAM to store the MRAM block
     //@@ INSERT WRAM ALLOCATION HERE
     // base addresses where this tasklet will store each transferred block
-    T* wram_base_addr_X = (T*)(((uintptr_t)mem_alloc(BLOCK_SIZE + 8) + 7) & ~0x7); // force 8-bit alignment
+    T *wram_base_addr_X =
+        (T *)(((uintptr_t)mem_alloc(BLOCK_SIZE + 8) + 7) & ~0x7); // force 8-bit alignment
 
     assert(wram_base_addr_X != NULL);
 
@@ -236,12 +216,12 @@ int main_kernel1() {
     }
 
     // compute final reduction
-    T final_value = finalize_reduction(tasklet_id);
+    T tasklet_sum = finalize_reduction(tasklet_id);
 
     if (tasklet_id == 0) {
         // Transfer 8 bytes (instead of sizeof(T)) because transfer has to be 8 bytes at a minimum.
         // T is at most 8 bytes (64 bits) for doubles or int64_t.
-        mram_write(&final_value, (__mram_ptr T *)mram_base_addr_X, 8);
+        mram_write(&tasklet_sum, (__mram_ptr T *)mram_base_addr_X, 8);
     }
 
     result->count += counter_stop(&count); // STOP TIMER

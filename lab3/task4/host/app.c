@@ -39,12 +39,8 @@ static void read_input(T *A, unsigned int nr_elements) {
 // Compute output in the host for verification purposes
 // vec_red: Reduces a vector to its maximum element
 static void vec_red(T *vec, T *res, unsigned int nr_elements) {
-    assert(nr_elements != 0);
-
-    *res = vec[0];
     for (unsigned int i = 0; i < nr_elements; i++) {
-        if (vec[i] > *res)
-            *res = vec[i];
+        *res += vec[i];
     }
 }
 
@@ -94,6 +90,10 @@ int main(int argc, char **argv) {
 
     // Loop over main kernel
     for (int rep = 0; rep < p.n_warmup + p.n_reps; rep++) {
+        // Reset accumulators for each repetition
+        host_reduc_res = 0;
+        dpu_reduc_res = 0;
+
         // Compute output on CPU (verification purposes)
         if (rep >= p.n_warmup)
             start(&timer, 0, rep - p.n_warmup);
@@ -195,20 +195,16 @@ int main(int argc, char **argv) {
         printf("copying data back\n");
 
         // reduce the results from the DPUS to a final value
-        uint8_t filled = 0;
         assert(sizeof(T) <= 8);
         for (size_t i = 0; i < nr_of_dpus; i++) {
-
             // trim the uint64_t to size of T (sizeof(T) <= 8)
-            T dpu_partial;
+            T dpu_partial = 0;
             memcpy(&dpu_partial, &dpu_partials[i], sizeof(T));
             printf("DPU#%ld partial = 0x%08x\r\n", i, dpu_partial);
-            if (!filled || dpu_partial > dpu_reduc_res) {
-                dpu_reduc_res = dpu_partial;
-                filled = 1;
-            }
+
+            dpu_reduc_res += dpu_partial;
+            printf("updated dpu_reduc_res = 0x%08x\r\n", dpu_reduc_res);
         }
-        assert(filled);
 
         if (rep >= p.n_warmup)
             stop(&timer, 3); // Stop timer (DPU-CPU transfers)
