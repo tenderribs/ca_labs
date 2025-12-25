@@ -128,19 +128,41 @@ In Task 4, I implemented a custom hybrid prefetcher designed to adapt to varying
 
 ### Design Rationale
 
-The initial design focused on the Best-Offset Prefetcher (BOP) [@michaud], motivated by the observation that the strided GHB prefetcher struggled with the irregular access patterns of the "Charlie" workloads. As shown in [@fig:t4_ghb_bop_hybrid_full], the BOP outperforms the system-aware GHB on the Charlie traces and specific graph workloads like `bfs-10` and `bfs-14`. However, on the remaining graph analytics workloads, the strided GHB retains a substantial performance advantage.
+My initial design was focused on the Best-Offset Prefetcher (BOP) [@michaud], motivated by the observation that the strided GHB prefetcher struggled with the irregular access patterns of the "Charlie" workloads. As shown in [@fig:t4_ghb_bop_hybrid_full], the BOP outperforms the system-aware GHB on the Charlie traces and specific graph workloads like `bfs-10` and `bfs-14`. However, on the remaining graph analytics workloads, the strided GHB retains a substantial performance advantage.
 
 Recognizing the complementary performance profiles of these two designs, I implemented a hybrid tournament prefetcher. This design dynamically selects between the BOP and the strided GHB based on their runtime accuracy.
 
 ### Hybrid Architecture
 
-The hybrid prefetcher maintains active instances of both the GHB and BOP engines. To determine which prefetcher is currently more effective, it employs a "shadow table" (or scoring board) that tracks the theoretical accuracy of each prefetcher without necessarily issuing their requests to memory.
+The hybrid prefetcher maintains active instances of both the GHB and BOP engines. To determine which prefetcher is currently more effective, it employs a tournament selection mechanism governed by a "shadow table" and a saturation counter.
 
-On every cache access, the hybrid system performs the following steps:
+#### 1. Tournament State
 
-1.  **Virtual Prefetching:** Both sub-prefetchers calculate their candidate addresses. Instead of issuing them immediately, the system records these addresses in the shadow table, tagging them with the ID of the generating prefetcher.
-2.  **Score Update:** If the current demand access matches an entry in the shadow table, it indicates a successful "virtual" prefetch. The preference tracker of the hybrid prefetcher is adjusted to favor the prefetcher that originally suggested this address more.
-3.  **Selection and Issuance:** The system compares the scores of the two engines. The prefetcher with the higher score is deemed the "winner," and its candidate address is issued to the L2C.
+The system state is tracked by a single integer counter ranging from 0 to 10, initialized to a neutral value of 5. The counter acts as a sliding scale of confidence: values toward 0 indicate a strong preference for the Best-Offset Prefetcher (BOP), while values toward 10 indicate a strong preference for the Strided GHB.
+
+#### 2. Shadow Table & Virtual Prefetching
+
+A "shadow table" is used to track the theoretical accuracy of each prefetcher. This table maps memory addresses to a creator ID (1=GHB, 2=BOP, 3=Both). On every cache access, both sub-prefetchers calculate their candidate addresses, but do not issue them directly. Instead, these "virtual prefetches" are inserted into the shadow table.
+
+- Fairness Mechanism: To ensure a fair comparison, the shadow table is only updated on cache misses or known useful prefetches. This prevents the GHB, which generates candidates on nearly every access, from flooding the table and drowning out the BOP, which triggers less frequently.
+- Collision Handling: If a prefetcher suggests an address already present in the table (created by the rival engine), the entry is marked as "Both". This ensures that if both engines correctly predict a line, the system remains neutral rather than arbitrarily favoring one.
+- Table Management: The table has a limited size (256 entries). If the table fills up, a Least-Recently-Used (LRU) policy evicts the oldest entries to make room for new predictions.
+
+#### 3. Score Update
+
+When a demand request hits an entry in the shadow table, it indicates a successful prediction. The tournament counter is updated based on the creator of that entry:
+
+- GHB Correct: Increment counter (shift toward 10).
+- BOP Correct: Decrement counter (shift toward 0).
+- Both Correct: The counter remains unchanged.The entry is immediately removed from the table after a hit to prevent double-counting
+
+#### 4. Arbitration and Issuance
+
+Finally, the system decides which candidates to actually issue to the L2C based on the tournament counter:
+
+- Counter $\ge$ 6 (Lean GHB): Only GHB candidates are issued.
+- Counter $\le$ 4 (Lean BOP): Only BOP candidates are issued.
+- Counter == 5 (Neutral): Candidates from both engines are issued. This "neutral zone" allows the system to explore both strategies when confidence is low or when the workload transitions.
 
 ### Results
 
