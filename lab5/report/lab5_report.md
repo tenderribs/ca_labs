@@ -65,4 +65,29 @@ I ran one multicore simulation (2C L-Trace, 2C H-Trace) and two single core simu
 | High Intensity (H) | 0.602           | 0.416          | -31% |
 | Low Intensity (L)  | 3.22            | 2.174          | -32% |
 
+### Question 4
+
+The TraceRecorder plugin is a memory controller plugin designed to log a cycle-accurate trace of all DRAM commands issued by the controller to a file. It creates a per-channel trace file at the path specified in the configuration. Every time the memory controller issues a command, the plugin records a new entry containing the following data:
+
+- Timestamp
+- Command Name
+- Address Vector
+
+### Question 5
+
+#### 1. The Difference Between FCFS and FRFCFS
+
+- **FCFS (First-Come-First-Serve)**: Prioritizes requests solely based on when they arrived at the memory controller. If the oldest request is a row-buffer miss, the controller waits for the necessary PRE and ACT commands to complete before issuing any other requests, even if newer requests in the buffer are row-buffer hits.
+- **FRFCFS (First-Ready, First-Come-First-Serve)**: Adds a "First-Ready" prioritization layer. It first checks if any requests are "ready" (i.e., they are row-buffer hits and satisfy all timing constraints). It prioritizes these ready requests over older requests that are not yet ready. It only falls back to arrival time (FCFS) if multiple requests are ready or if no requests are ready.
+
+#### 2. Impact on System Performance
+
+The impact is significant, as seen in the multicore simulation results in the same setup as question 3:
+
+| Metric                  | FRFCFS Policy | FCFS Policy | Performance Impact |
+| ----------------------- | ------------- | ----------- | ------------------ |
+| Memory System Cycles    | 270,168       | 789,751     | ~2.9x Slower       |
+| Core 0 Cycles (L-trace) | 134,055       | 344,892     | ~2.6x Slower       |
+| Core 2 Cycles (H-trace) | 720,447       | 2,097,535   | ~2.9x Slower       |
+
 ## Citations

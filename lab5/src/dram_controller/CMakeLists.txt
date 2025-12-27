@@ -2,15 +2,16 @@ add_library(ramulator-controller OBJECT)
 
 target_sources(
   ramulator-controller PRIVATE
-  controller.h 
-  scheduler.h 
+  controller.h
+  scheduler.h
   plugin.h
   refresh.h
 
   impl/dummy_controller.cpp
   impl/generic_dram_controller.cpp
-  
+
   impl/scheduler/generic_scheduler.cpp
+  impl/scheduler/fcfs.cpp
 
   impl/refresh/all_bank_refresh.cpp
 

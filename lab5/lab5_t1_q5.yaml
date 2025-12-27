@@ -5,10 +5,10 @@ Frontend:
   num_expected_insts: 300000
   llc_capacity_per_core: 64KB
   traces:
-    # - low-mem-intensity.trace
-    # - low-mem-intensity.trace
+    - low-mem-intensity.trace
+    - low-mem-intensity.trace
     - high-mem-intensity.trace
-    # - high-mem-intensity.trace
+    - high-mem-intensity.trace
 
   Translation:
     impl: RandomTranslation
@@ -32,10 +32,14 @@ MemorySystem:
   Controller:
     impl: Generic
     Scheduler:
-      impl: FRFCFS
+      impl: FCFS
+      # impl: FRFCFS
     RefreshManager:
       impl: AllBank
     plugins:
+      # - ControllerPlugin:
+      #     impl: TraceRecorder
+      #     path: ./example.dram.trace
 
   AddrMapper:
     impl: RoBaRaCoCh

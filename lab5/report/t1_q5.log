@@ -1,0 +1,83 @@
+########### FRFCFS Multicore ###########
+
+Frontend:
+  impl: SimpleO3
+  memory_access_cycles_recorded_core_3: 253742
+  cycles_recorded_core_3: 710170
+  num_expected_insts: 300000
+  llc_eviction: 31373
+  llc_write_access: 1383
+  llc_write_misses: 1381
+  cycles_recorded_core_2: 720447
+  memory_access_cycles_recorded_core_2: 257700
+  llc_read_access: 34142
+  llc_read_misses: 34088
+  llc_mshr_unavailable: 0
+  cycles_recorded_core_0: 134055
+  memory_access_cycles_recorded_core_0: 23381
+  cycles_recorded_core_1: 137983
+  memory_access_cycles_recorded_core_1: 24825
+  Translation:
+    impl: RandomTranslation
+
+MemorySystem:
+  impl: GenericDRAM
+  total_num_other_requests: 0
+  total_num_write_requests: 1100
+  total_num_read_requests: 35466
+  memory_system_cycles: 270168
+  DRAM:
+    impl: DDR4
+  AddrMapper:
+    impl: RoBaRaCoCh
+  Controller:
+    impl: Generic
+    id: Channel 0
+    Scheduler:
+      impl: FRFCFS
+    RefreshManager:
+      impl: AllBank
+
+
+
+########### FCFS Multicore ###########
+Frontend:
+  impl: SimpleO3
+  memory_access_cycles_recorded_core_3: 779692
+  cycles_recorded_core_3: 2106002
+  num_expected_insts: 300000
+  llc_eviction: 32362
+  llc_write_access: 1680
+  llc_write_misses: 1680
+  cycles_recorded_core_2: 2097535
+  memory_access_cycles_recorded_core_2: 776589
+  llc_read_access: 39230
+  llc_read_misses: 39187
+  llc_mshr_unavailable: 4409
+  cycles_recorded_core_0: 344892
+  memory_access_cycles_recorded_core_0: 101748
+  cycles_recorded_core_1: 347879
+  memory_access_cycles_recorded_core_1: 102425
+  Translation:
+    impl: RandomTranslation
+
+
+MemorySystem:
+  impl: GenericDRAM
+  total_num_other_requests: 0
+  total_num_write_requests: 1088
+  total_num_read_requests: 36457
+  memory_system_cycles: 789751
+  DRAM:
+    impl: DDR4
+  AddrMapper:
+    impl: RoBaRaCoCh
+  Controller:
+    impl: Generic
+    id: Channel 0
+    Scheduler:
+      impl: FCFS
+    RefreshManager:
+      impl: AllBank
+    ControllerPlugin:
+      impl: TraceRecorder
