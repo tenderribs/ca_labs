@@ -5,9 +5,9 @@ services:
     - infinity
     image: richardluo831/ramulator2
     init: true
-    working_dir: /home/dev
+    working_dir: /home/dev/ramulator2
     volumes:
-    - .:/home/dev
+    - .:/home/dev/ramulator2
     - type: bind
       source: /var/run/docker.sock
       target: /var/run/docker.sock
