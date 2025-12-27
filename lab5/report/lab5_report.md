@@ -55,14 +55,14 @@ is connected to a SimpleO3 (Out-of-Order) CPU model with a 64KB Last Level Cache
 
 ### Question 3
 
-I ran one multicore simulation (2C L-Trace, 2C H-Trace) and two single core simulations (once 1C L-Trace, once 1C H-Trace) for 300K instructions per simulation. The number of CPU cycles per core can be gathered from the `cycles_recorded_core_x` statistic printed.
+I ran one multicore simulation (2C L-Trace, 2C H-Trace) and two single core simulations (once 1C L-Trace, once 1C H-Trace) for 300K instructions per simulation. The number of CPU cycles per core can be gathered from the `cycles_recorded_core_x` statistic printed. The IPC is derived as:
 
 `IPC = num_expected_insts / cycles_recorded_core_X`
 
 
-| Trace Type | Single-core IPC | Multi-core IPC | Diff |
-| ---------- | --------------- | -------------- | ---- |
-| H          | 0.602           | 0.416          | -31% |
-| L          | 3.22            | 2.174          | -32% |
+| Trace Type         | Single-core IPC | Multi-core IPC | Diff |
+| ------------------ | --------------- | -------------- | ---- |
+| High Intensity (H) | 0.602           | 0.416          | -31% |
+| Low Intensity (L)  | 3.22            | 2.174          | -32% |
 
 ## Citations
