@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 plt.rcParams["font.family"] = "serif"
 plt.rcParams["font.size"] = 10
 
-csv_path = "bench/sorted_inputs_custom_*.x.csv"
+csv_path = "bench/inputs_custom_*.x.csv"
 
 config_cols = [
     "policy",
@@ -27,17 +27,21 @@ test_names = {
     "inputs/custom/strided_access.x": "Strided Access",
     "inputs/custom/test1.x": "Sequential-8",
     "inputs/custom/stream_reuse.x": "Stream-Reuse",
+    "inputs/custom/levenshtein.x": "Levenshtein",
+    "inputs/custom/matmul.x": "Mat-Mul",
 }
 
 colors = [
-    "#A23D3B",
-    "#F18F01",
-    "#C7B91D",
+    "#D1322F",
+    "#F17901",
+    "#E0D018",
     "#67C71D",
-    "#1D75C7",
-    "#5E1DC7",
-    "#C11DC7",
-    "#C71D69",
+    "#0D8825",
+    "#1DB6C7",
+    "#1D4AC7",
+    "#6C1DC7",
+    "#AB1DC7",
+    "#C71D83",
 ]  # Different colors for each test
 
 
@@ -348,6 +352,6 @@ def analyze_policy_effect():
 if __name__ == "__main__":
     # best_overall()
     # analyze_cache_size_effect()
-    # analyze_block_size_effect()
+    analyze_block_size_effect()
     # analyze_associativity_effect()
-    analyze_policy_effect()
+    # analyze_policy_effect()
