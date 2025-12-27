@@ -1,0 +1,111 @@
+########### Multicore: 2C High intensity, 2C low intensity ###########
+
+Frontend:
+  impl: SimpleO3
+  memory_access_cycles_recorded_core_3: 253742
+  cycles_recorded_core_3: 710170
+  num_expected_insts: 300000
+  llc_eviction: 31373
+  llc_write_access: 1383
+  llc_write_misses: 1381
+  cycles_recorded_core_2: 720447
+  memory_access_cycles_recorded_core_2: 257700
+  llc_read_access: 34142
+  llc_read_misses: 34088
+  llc_mshr_unavailable: 0
+  cycles_recorded_core_0: 134055
+  memory_access_cycles_recorded_core_0: 23381
+  cycles_recorded_core_1: 137983
+  memory_access_cycles_recorded_core_1: 24825
+  Translation:
+    impl: RandomTranslation
+
+MemorySystem:
+  impl: GenericDRAM
+  total_num_other_requests: 0
+  total_num_write_requests: 1100
+  total_num_read_requests: 35466
+  memory_system_cycles: 270168
+  DRAM:
+    impl: DDR4
+  AddrMapper:
+    impl: RoBaRaCoCh
+  Controller:
+    impl: Generic
+    id: Channel 0
+    Scheduler:
+      impl: FRFCFS
+    RefreshManager:
+      impl: AllBank
+
+Single Core
+
+########### Low mem intensity trace single Core ###########
+
+Frontend:
+  impl: SimpleO3
+  memory_access_cycles_recorded_core_0: 8037
+  cycles_recorded_core_0: 93159
+  llc_mshr_unavailable: 0
+  llc_read_misses: 575
+  llc_read_access: 575
+  llc_write_misses: 0
+  llc_write_access: 0
+  llc_eviction: 13
+  num_expected_insts: 300000
+  Translation:
+    impl: RandomTranslation
+
+
+MemorySystem:
+  impl: GenericDRAM
+  total_num_other_requests: 0
+  total_num_write_requests: 0
+  total_num_read_requests: 575
+  memory_system_cycles: 34935
+  DRAM:
+    impl: DDR4
+  AddrMapper:
+    impl: RoBaRaCoCh
+  Controller:
+    impl: Generic
+    id: Channel 0
+    Scheduler:
+      impl: FRFCFS
+    RefreshManager:
+      impl: AllBank
+
+########### High mem intensity trace single Core ###########
+
+Frontend:
+  impl: SimpleO3
+  memory_access_cycles_recorded_core_0: 175878
+  cycles_recorded_core_0: 498311
+  llc_mshr_unavailable: 16469
+  llc_read_misses: 31458
+  llc_read_access: 31471
+  llc_write_misses: 1559
+  llc_write_access: 1559
+  llc_eviction: 15524
+  num_expected_insts: 300000
+  Translation:
+    impl: RandomTranslation
+
+
+MemorySystem:
+  impl: GenericDRAM
+  total_num_other_requests: 0
+  total_num_write_requests: 601
+  total_num_read_requests: 16545
+  memory_system_cycles: 186867
+  DRAM:
+    impl: DDR4
+  AddrMapper:
+    impl: RoBaRaCoCh
+  Controller:
+    impl: Generic
+    id: Channel 0
+    Scheduler:
+      impl: FRFCFS
+    RefreshManager:
+      impl: AllBank
