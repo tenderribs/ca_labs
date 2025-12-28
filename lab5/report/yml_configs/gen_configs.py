@@ -6,7 +6,7 @@ env = Environment(loader = FileSystemLoader('report/yml_configs'))
 template = env.get_template('lab5_t4_templ.jinja')
 
 schedulers = ['FCFS', 'FRFCFS', 'ATLAS', 'BLISS']
-core_configs = [(1, 3), (2, 2), (0, 4), (0, 8), (0, 1), (1, 0)] # (num_l, num_h)
+core_configs = [(3, 1), (2, 2), (0, 4), (0, 8), (0, 1), (1, 0)] # (num_l, num_h)
 
 # Create the multi core YAML files
 for scheduler in schedulers:

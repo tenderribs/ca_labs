@@ -1,0 +1,49 @@
+[Ramulator::SimpleO3] [info] Processor Heartbeat 10000000 cycles.
+[Ramulator::SimpleO3] [info] Processor Heartbeat 20000000 cycles.
+[Ramulator::SimpleO3] [info] Processor Heartbeat 30000000 cycles.
+[Ramulator::SimpleO3] [info] Processor Heartbeat 40000000 cycles.
+Frontend:
+  impl: SimpleO3
+  memory_access_cycles_recorded_core_3: 17959799
+  insts_retired_core_2: 174648139
+  cycles_recorded_core_2: 5670007
+  num_expected_insts: 20000000
+  cycles_recorded_core_3: 49519160
+  insts_retired_core_1: 174867443
+  llc_eviction: 1924455
+  llc_write_access: 341700
+  llc_write_misses: 339648
+  insts_retired_core_3: 20000002
+  memory_access_cycles_recorded_core_2: 246355
+  llc_read_access: 1594934
+  llc_read_misses: 1588931
+  insts_retired_core_0: 174597016
+  llc_mshr_unavailable: 0
+  cycles_recorded_core_0: 5650727
+  memory_access_cycles_recorded_core_0: 238786
+  cycles_recorded_core_1: 5643145
+  memory_access_cycles_recorded_core_1: 237079
+  Translation:
+    impl: RandomTranslation
+
+
+MemorySystem:
+  impl: GenericDRAM
+  total_num_other_requests: 0
+  total_num_write_requests: 340578
+  total_num_read_requests: 1928539
+  memory_system_cycles: 18569685
+  DRAM:
+    impl: DDR4
+  AddrMapper:
+    impl: RoBaRaCoCh
+  Controller:
+    impl: Generic
+    id: Channel 0
+    Scheduler:
+      impl: ATLAS
+    RefreshManager:
+      impl: AllBank
+
+
+

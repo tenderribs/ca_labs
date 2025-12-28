@@ -9,27 +9,29 @@
 [Ramulator::SimpleO3] [info] Processor Heartbeat 90000000 cycles.
 [Ramulator::SimpleO3] [info] Processor Heartbeat 100000000 cycles.
 [Ramulator::SimpleO3] [info] Processor Heartbeat 110000000 cycles.
+[Ramulator::SimpleO3] [info] Processor Heartbeat 120000000 cycles.
+[Ramulator::SimpleO3] [info] Processor Heartbeat 130000000 cycles.
 Frontend:
   impl: SimpleO3
-  memory_access_cycles_recorded_core_3: 40047659
-  insts_retired_core_2: 20481829
-  cycles_recorded_core_2: 106437567
+  memory_access_cycles_recorded_core_3: 48608648
+  insts_retired_core_2: 347372945
+  cycles_recorded_core_2: 6710220
   num_expected_insts: 20000000
-  cycles_recorded_core_3: 111348545
-  insts_retired_core_1: 20689400
-  llc_eviction: 5681586
-  llc_write_access: 12834926
-  llc_write_misses: 12834720
-  insts_retired_core_3: 20000002
-  memory_access_cycles_recorded_core_2: 38898062
-  llc_read_access: 40146779
-  llc_read_misses: 40139422
-  insts_retired_core_0: 337280908
-  llc_mshr_unavailable: 47288376
-  cycles_recorded_core_0: 6118548
-  memory_access_cycles_recorded_core_0: 407768
-  cycles_recorded_core_1: 105160068
-  memory_access_cycles_recorded_core_1: 38413600
+  cycles_recorded_core_3: 130960804
+  insts_retired_core_1: 347483259
+  llc_eviction: 2053330
+  llc_write_access: 354651
+  llc_write_misses: 353394
+  insts_retired_core_3: 20000003
+  memory_access_cycles_recorded_core_2: 645018
+  llc_read_access: 1716397
+  llc_read_misses: 1710611
+  insts_retired_core_0: 347653422
+  llc_mshr_unavailable: 6544
+  cycles_recorded_core_0: 6702647
+  memory_access_cycles_recorded_core_0: 641843
+  cycles_recorded_core_1: 6688804
+  memory_access_cycles_recorded_core_1: 637331
   Translation:
     impl: RandomTranslation
 
@@ -37,9 +39,9 @@ Frontend:
 MemorySystem:
   impl: GenericDRAM
   total_num_other_requests: 0
-  total_num_write_requests: 1047210
-  total_num_read_requests: 5685676
-  memory_system_cycles: 41755704
+  total_num_write_requests: 351373
+  total_num_read_requests: 2057425
+  memory_system_cycles: 49110302
   DRAM:
     impl: DDR4
   AddrMapper:
@@ -48,7 +50,7 @@ MemorySystem:
     impl: Generic
     id: Channel 0
     Scheduler:
-      impl: BLISS
+      impl: FCFS
     RefreshManager:
       impl: AllBank
 
