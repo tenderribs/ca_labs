@@ -9,9 +9,11 @@ target_sources(
 
   impl/dummy_controller.cpp
   impl/generic_dram_controller.cpp
+  impl/atlas_common.h
 
   impl/scheduler/generic_scheduler.cpp
   impl/scheduler/fcfs.cpp
+  impl/scheduler/atlas.cpp
 
   impl/refresh/all_bank_refresh.cpp
 
@@ -24,6 +26,7 @@ target_sources(
   impl/plugin/twice.cpp
   impl/plugin/hydra.cpp
   impl/plugin/rrs.cpp
+  impl/plugin/atlas.cpp
 
   )
 
