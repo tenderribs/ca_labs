@@ -35,7 +35,9 @@ header-includes: |
 
 - Timing Preset: DDR4_2400R (Operating at 2400 MT/s).
 - Clock Ratio: 3 (The memory system operates at a frequency relative to the simulation base clock).
-Memory Controller Logic
+
+#### Memory Controller Logic
+
 - Controller Implementation: Generic
 - Scheduling Policy: FRFCFS (First-Ready, First-Come-First-Serve), which prioritizes requests that hit an open row (row-buffer hits) and then older requests.
 - Refresh Management: AllBank (Refreshes all banks simultaneously).
@@ -44,8 +46,7 @@ Memory Controller Logic
 
 - Address Mapping: RoBaRaCoCh (Row-Bank-Rank-Column-Channel). This mapping scheme determines how physical addresses are translated into DRAM coordinates, prioritizing row locality.
 - Memory System Implementation: GenericDRAM.
-- Frontend Connection: It
-is connected to a SimpleO3 (Out-of-Order) CPU model with a 64KB Last Level Cache (LLC).
+- Frontend Connection: It is connected to a SimpleO3 (Out-of-Order) CPU model with a 64KB Last Level Cache (LLC).
 
 ### Question 2
 
@@ -164,8 +165,6 @@ In the `3L-1H` case, all schedulers maintain reasonable fairness (Slowdown < 1.3
 - ATLAS provides the highest peak performance for mixed workloads but is fragile in homogeneous, memory-intensive scenarios due to its coarse-grained quantum and strict ranking.
 - BLISS offers a more balanced trade-off, delivering high performance in mixed workloads while degrading gracefully to FR-FCFS behavior in saturation scenarios, avoiding the extreme unfairness pitfalls of ATLAS.
 - FR-FCFS is an incredibly strong baseline, that offers similar performance to BLISS and ATLAS with much lower complexity.
-
-\newpage
 
 ## Citations
 
