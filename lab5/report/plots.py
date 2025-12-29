@@ -24,7 +24,7 @@ def plot_metric(csv_file, metric_col, title, y_label, output_filename):
     sns.set_theme(style="whitegrid")
 
     # Initialize the figure
-    plt.figure(figsize=(10, 6))
+    plt.figure(figsize=(10, 5))
 
     # Create the Bar Plot
     # hue='scheduler' creates the grouping by scheduler
@@ -61,7 +61,7 @@ if __name__ == "__main__":
         metric_col="inst_thrput",
         title="System Instruction Throughput",
         y_label="Aggregate Instructions / Cycle",
-        output_filename="inst_throughput.png"
+        output_filename="inst_throughput.eps"
     )
 
     # 2. Plot Maximum Slowdown
@@ -70,5 +70,5 @@ if __name__ == "__main__":
         metric_col="max_slowdown",
         title="Maximum Slowdown (Unfairness)",
         y_label="Max Slowdown",
-        output_filename="max_slowdown.png"
+        output_filename="max_slowdown.eps"
     )

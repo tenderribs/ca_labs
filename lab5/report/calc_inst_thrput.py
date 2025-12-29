@@ -9,7 +9,7 @@ results = []
 for scheduler in schedulers:
     for config in shared_configs:
         num_l, num_h = config
-        file_path = f"report/result_logs/{scheduler}_{num_l}L{num_h}H.log"
+        file_path = f"report/ramulator_logs/{scheduler}_{num_l}L{num_h}H.log"
 
         with open(file_path, "r") as f:
             content = f.read()

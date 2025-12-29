@@ -36,13 +36,13 @@ def calculate_max_slowdown():
         # 1. Get Baseline Cycles (Alone)
 
         # Low Intensity Alone
-        low_alone_file = f"report/result_logs/{scheduler}_1L0H.log"
+        low_alone_file = f"report/ramulator_logs/{scheduler}_1L0H.log"
         low_cycles_map = get_cycles(low_alone_file)
         assert low_cycles_map and 0 in low_cycles_map
         low_alone_cycles = low_cycles_map[0]
 
         # High Intensity Alone
-        high_alone_file = f"report/result_logs/{scheduler}_0L1H.log"
+        high_alone_file = f"report/ramulator_logs/{scheduler}_0L1H.log"
         high_cycles_map = get_cycles(high_alone_file)
         assert high_cycles_map and 0 in high_cycles_map
         high_alone_cycles = high_cycles_map[0]
@@ -50,7 +50,7 @@ def calculate_max_slowdown():
         # 2. Calculate Slowdown for Shared Configs
         for num_l, num_h in shared_configs:
             config_name = f"{num_l}L{num_h}H"
-            log_file = f"report/result_logs/{scheduler}_{config_name}.log"
+            log_file = f"report/ramulator_logs/{scheduler}_{config_name}.log"
 
             cycles_map = get_cycles(log_file)
             assert cycles_map
