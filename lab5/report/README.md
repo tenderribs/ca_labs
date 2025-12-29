@@ -28,7 +28,7 @@ The YAML config files for the different workloads are generated using the Jinja 
 
 ### 2. Running Tests
 
-After building the project using cmake and make, the `test_runner.sh` can be used to run multiple simulations in parallel using the generated configs. You can tweak the number of workers allotted for this. Note that in a Docker container, you might run out of memory for large worker counts (adjust the resources allocated to Docker as necessary). The results of each worker are saved in the `report/ramulator_logs` folder. The simulations for the 0L8H workloads can take a few hours.
+After building the project using cmake and make, the `test_runner.sh` can be used to run multiple simulations in parallel using the generated configs. Note that in a Docker container, you might run out of memory for large worker counts (I needed to adjust the resources allocated to Docker). The results of each worker are saved in the `report/ramulator_logs` folder. The simulations for the 0L8H workloads can take a few hours.
 
 ### 3. Evaluation
 
@@ -40,3 +40,4 @@ python3 report/calc_slowdown.py && python3 report/calc_inst_thrput.py
 
 ### 4. Plotting
 
+There is a python script for this in `report/plots.py`. It generates the two bar charts.
