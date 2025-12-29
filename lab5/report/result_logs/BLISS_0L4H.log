@@ -15,25 +15,25 @@
 [Ramulator::SimpleO3] [info] Processor Heartbeat 150000000 cycles.
 Frontend:
   impl: SimpleO3
-  memory_access_cycles_recorded_core_3: 49386312
-  insts_retired_core_2: 21906981
-  cycles_recorded_core_2: 142340378
+  memory_access_cycles_recorded_core_3: 48968378
+  insts_retired_core_2: 21825483
+  cycles_recorded_core_2: 141664017
   num_expected_insts: 20000000
-  cycles_recorded_core_3: 153374207
-  insts_retired_core_1: 22895833
-  llc_eviction: 7848452
-  llc_write_access: 24336149
-  llc_write_misses: 24335966
+  cycles_recorded_core_3: 152060121
+  insts_retired_core_1: 22749072
+  llc_eviction: 7818017
+  llc_write_access: 23809079
+  llc_write_misses: 23808928
   insts_retired_core_3: 20000003
-  memory_access_cycles_recorded_core_2: 50525057
-  llc_read_access: 103378546
-  llc_read_misses: 103370998
-  insts_retired_core_0: 23078127
-  llc_mshr_unavailable: 119854279
-  cycles_recorded_core_0: 133964191
-  memory_access_cycles_recorded_core_0: 48578388
-  cycles_recorded_core_1: 135738025
-  memory_access_cycles_recorded_core_1: 49144381
+  memory_access_cycles_recorded_core_2: 50388343
+  llc_read_access: 101148901
+  llc_read_misses: 101141265
+  insts_retired_core_0: 22998283
+  llc_mshr_unavailable: 117127955
+  cycles_recorded_core_0: 133407807
+  memory_access_cycles_recorded_core_0: 48412917
+  cycles_recorded_core_1: 135365042
+  memory_access_cycles_recorded_core_1: 49031457
   Translation:
     impl: RandomTranslation
 
@@ -41,9 +41,9 @@ Frontend:
 MemorySystem:
   impl: GenericDRAM
   total_num_other_requests: 0
-  total_num_write_requests: 1423585
-  total_num_read_requests: 7852527
-  memory_system_cycles: 57515328
+  total_num_write_requests: 1418437
+  total_num_read_requests: 7822093
+  memory_system_cycles: 57022545
   DRAM:
     impl: DDR4
   AddrMapper:

@@ -46,13 +46,16 @@ class BLISSPlugin : public IControllerPlugin, public Implementation {
 
             if (request_found) {
                 int source_id = req_it->source_id;
-
-                // Track consecutive requests from the same source
-                if (source_id == state.last_source_id) {
-                    state.consecutive_requests++;
-                } else {
-                    state.last_source_id = source_id;
-                    state.consecutive_requests = 1;
+                // Count if this command completes the request (Read or Write)
+                // If we are just opening a row (ACT), we haven't "serviced" the request yet.
+                if (req_it->command == req_it->final_command) {
+                    // Track consecutive requests from the same source
+                    if (source_id == state.last_source_id) {
+                        state.consecutive_requests++;
+                    } else {
+                        state.last_source_id = source_id;
+                        state.consecutive_requests = 1;
+                    }
                 }
 
                 // Blacklist if threshold exceeded
