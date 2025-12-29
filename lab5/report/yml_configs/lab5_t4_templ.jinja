@@ -1,0 +1,48 @@
+# Main configuration file used in Lab 5
+Frontend:
+  impl: SimpleO3
+  clock_ratio: 8
+  num_expected_insts: 20000000
+  llc_capacity_per_core: 64KB
+  traces:
+    {%- for i in range(num_l) %}
+    - low-mem-intensity.trace
+    {%- endfor %}
+    {%- for i in range(num_h) %}
+    - high-mem-intensity.trace
+    {%- endfor %}
+
+  Translation:
+    impl: RandomTranslation
+    max_addr: 2147483648
+
+MemorySystem:
+  impl: GenericDRAM
+  clock_ratio: 3
+
+  DRAM:
+    impl: DDR4
+    org:
+      preset: DDR4_8Gb_x8
+      channel: 1
+      rank: 1
+    timing:
+      preset: DDR4_2400R
+
+  Controller:
+    impl: Generic
+    Scheduler:
+      impl: {{scheduler}}
+    RefreshManager:
+      impl: AllBank
+    plugins:
+      {%- if scheduler == 'ATLAS' %}
+      - ControllerPlugin:
+          impl: ATLAS
+      {%- elif scheduler == 'BLISS' %}
+      - ControllerPlugin:
+          impl: BLISS
+      {%- endif %}
+
+  AddrMapper:
+    impl: RoBaRaCoCh

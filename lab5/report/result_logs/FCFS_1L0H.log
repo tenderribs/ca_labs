@@ -1,0 +1,36 @@
+Frontend:
+  impl: SimpleO3
+  memory_access_cycles_recorded_core_0: 106976
+  cycles_recorded_core_0: 5283028
+  llc_mshr_unavailable: 0
+  insts_retired_core_0: 20000003
+  llc_read_misses: 5177
+  llc_read_access: 5177
+  llc_write_misses: 0
+  llc_write_access: 0
+  llc_eviction: 4153
+  num_expected_insts: 20000000
+  Translation:
+    impl: RandomTranslation
+
+
+MemorySystem:
+  impl: GenericDRAM
+  total_num_other_requests: 0
+  total_num_write_requests: 0
+  total_num_read_requests: 5177
+  memory_system_cycles: 1981136
+  DRAM:
+    impl: DDR4
+  AddrMapper:
+    impl: RoBaRaCoCh
+  Controller:
+    impl: Generic
+    id: Channel 0
+    Scheduler:
+      impl: FCFS
+    RefreshManager:
+      impl: AllBank
+
+
+

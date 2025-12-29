@@ -1,0 +1,47 @@
+[Ramulator::SimpleO3] [info] Processor Heartbeat 10000000 cycles.
+[Ramulator::SimpleO3] [info] Processor Heartbeat 20000000 cycles.
+[Ramulator::SimpleO3] [info] Processor Heartbeat 30000000 cycles.
+[Ramulator::SimpleO3] [info] Processor Heartbeat 40000000 cycles.
+[Ramulator::SimpleO3] [info] Processor Heartbeat 50000000 cycles.
+[Ramulator::SimpleO3] [info] Processor Heartbeat 60000000 cycles.
+[Ramulator::SimpleO3] [info] Processor Heartbeat 70000000 cycles.
+[Ramulator::SimpleO3] [info] Processor Heartbeat 80000000 cycles.
+[Ramulator::SimpleO3] [info] Processor Heartbeat 90000000 cycles.
+[Ramulator::SimpleO3] [info] Processor Heartbeat 100000000 cycles.
+[Ramulator::SimpleO3] [info] Processor Heartbeat 110000000 cycles.
+Frontend:
+  impl: SimpleO3
+  memory_access_cycles_recorded_core_0: 43012711
+  cycles_recorded_core_0: 116038193
+  llc_mshr_unavailable: 65728737
+  insts_retired_core_0: 20000003
+  llc_read_misses: 50172140
+  llc_read_access: 50174038
+  llc_write_misses: 17363512
+  llc_write_access: 17363517
+  llc_eviction: 1805861
+  num_expected_insts: 20000000
+  Translation:
+    impl: RandomTranslation
+
+
+MemorySystem:
+  impl: GenericDRAM
+  total_num_other_requests: 0
+  total_num_write_requests: 330750
+  total_num_read_requests: 1806884
+  memory_system_cycles: 43514322
+  DRAM:
+    impl: DDR4
+  AddrMapper:
+    impl: RoBaRaCoCh
+  Controller:
+    impl: Generic
+    id: Channel 0
+    Scheduler:
+      impl: FCFS
+    RefreshManager:
+      impl: AllBank
+
+
+

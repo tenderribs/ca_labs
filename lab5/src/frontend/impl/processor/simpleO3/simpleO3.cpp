@@ -27,7 +27,7 @@ class SimpleO3 final : public IFrontEnd, public Implementation {
   public:
     void init() override {
       m_clock_ratio = param<uint>("clock_ratio").required();
-      
+
       // Core params
       std::vector<std::string> trace_list = param<std::vector<std::string>>("traces").desc("A list of traces.").required();
       m_num_cores = trace_list.size();
@@ -70,11 +70,12 @@ class SimpleO3 final : public IFrontEnd, public Implementation {
       register_stat(m_llc->s_llc_read_misses).name("llc_read_misses");
       register_stat(m_llc->s_llc_write_misses).name("llc_write_misses");
       register_stat(m_llc->s_llc_mshr_unavailable).name("llc_mshr_unavailable");
-      
+
       for (int core_id = 0; core_id < m_cores.size(); core_id++) {
         // register_stat(m_cores[core_id]->s_insts_retired).name("cycles_retired_core_{}", core_id);
         register_stat(m_cores[core_id]->s_cycles_recorded).name("cycles_recorded_core_{}", core_id);
         register_stat(m_cores[core_id]->s_mem_access_cycles).name("memory_access_cycles_recorded_core_{}", core_id);
+        register_stat(m_cores[core_id]->s_insts_retired).name("insts_retired_core_{}", core_id);
       }
     }
 
