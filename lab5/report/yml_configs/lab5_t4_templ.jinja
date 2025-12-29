@@ -36,6 +36,13 @@ MemorySystem:
     RefreshManager:
       impl: AllBank
     plugins:
+      {%- if scheduler == 'ATLAS' %}
+      - ControllerPlugin:
+          impl: ATLAS
+      {%- elif scheduler == 'BLISS' %}
+      - ControllerPlugin:
+          impl: BLISS
+      {%- endif %}
 
   AddrMapper:
     impl: RoBaRaCoCh

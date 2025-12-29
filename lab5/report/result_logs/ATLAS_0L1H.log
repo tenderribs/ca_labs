@@ -4,15 +4,15 @@
 [Ramulator::SimpleO3] [info] Processor Heartbeat 40000000 cycles.
 Frontend:
   impl: SimpleO3
-  memory_access_cycles_recorded_core_0: 17606434
-  cycles_recorded_core_0: 48512637
-  llc_mshr_unavailable: 16964432
+  memory_access_cycles_recorded_core_0: 17776285
+  cycles_recorded_core_0: 48964021
+  llc_mshr_unavailable: 17225740
   insts_retired_core_0: 20000001
-  llc_read_misses: 13780046
-  llc_read_access: 13781950
-  llc_write_misses: 4991299
-  llc_write_access: 4991304
-  llc_eviction: 1805865
+  llc_read_misses: 13959748
+  llc_read_access: 13961652
+  llc_write_misses: 5072903
+  llc_write_access: 5072908
+  llc_eviction: 1805863
   num_expected_insts: 20000000
   Translation:
     impl: RandomTranslation
@@ -22,8 +22,8 @@ MemorySystem:
   impl: GenericDRAM
   total_num_other_requests: 0
   total_num_write_requests: 330750
-  total_num_read_requests: 1806885
-  memory_system_cycles: 18192239
+  total_num_read_requests: 1806883
+  memory_system_cycles: 18361508
   DRAM:
     impl: DDR4
   AddrMapper:
@@ -35,6 +35,8 @@ MemorySystem:
       impl: ATLAS
     RefreshManager:
       impl: AllBank
+    ControllerPlugin:
+      impl: ATLAS
 
 
 

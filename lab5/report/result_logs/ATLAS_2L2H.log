@@ -5,23 +5,27 @@
 [Ramulator::SimpleO3] [info] Processor Heartbeat 50000000 cycles.
 [Ramulator::SimpleO3] [info] Processor Heartbeat 60000000 cycles.
 [Ramulator::SimpleO3] [info] Processor Heartbeat 70000000 cycles.
+[Ramulator::SimpleO3] [info] Processor Heartbeat 80000000 cycles.
+[Ramulator::SimpleO3] [info] Processor Heartbeat 90000000 cycles.
+[Ramulator::SimpleO3] [info] Processor Heartbeat 100000000 cycles.
+[Ramulator::SimpleO3] [info] Processor Heartbeat 110000000 cycles.
 Frontend:
   impl: SimpleO3
-  memory_access_cycles_recorded_core_3: 28238036
-  insts_retired_core_2: 20054749
-  cycles_recorded_core_2: 76790113
+  memory_access_cycles_recorded_core_3: 32476366
+  insts_retired_core_2: 20000003
+  cycles_recorded_core_2: 115108764
   num_expected_insts: 20000000
-  cycles_recorded_core_3: 77203898
-  insts_retired_core_1: 251331976
-  llc_eviction: 3739808
-  llc_write_access: 1331260
-  llc_write_misses: 1331162
-  insts_retired_core_3: 20000003
-  memory_access_cycles_recorded_core_2: 28084338
-  llc_read_access: 4762892
-  llc_read_misses: 4756071
-  insts_retired_core_0: 250920376
-  llc_mshr_unavailable: 2343269
+  cycles_recorded_core_3: 88457780
+  insts_retired_core_1: 396936984
+  llc_eviction: 4317378
+  llc_write_access: 1608221
+  llc_write_misses: 1606216
+  insts_retired_core_3: 26208375
+  memory_access_cycles_recorded_core_2: 42386786
+  llc_read_access: 5877777
+  llc_read_misses: 5867466
+  insts_retired_core_0: 396907035
+  llc_mshr_unavailable: 3152141
   cycles_recorded_core_0: 5832503
   memory_access_cycles_recorded_core_0: 305642
   cycles_recorded_core_1: 5844052
@@ -33,9 +37,9 @@ Frontend:
 MemorySystem:
   impl: GenericDRAM
   total_num_other_requests: 0
-  total_num_write_requests: 673042
-  total_num_read_requests: 3743892
-  memory_system_cycles: 28951462
+  total_num_write_requests: 766099
+  total_num_read_requests: 4321468
+  memory_system_cycles: 43165787
   DRAM:
     impl: DDR4
   AddrMapper:
@@ -47,6 +51,8 @@ MemorySystem:
       impl: ATLAS
     RefreshManager:
       impl: AllBank
+    ControllerPlugin:
+      impl: ATLAS
 
 
 

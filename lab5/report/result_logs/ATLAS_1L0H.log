@@ -31,6 +31,8 @@ MemorySystem:
       impl: ATLAS
     RefreshManager:
       impl: AllBank
+    ControllerPlugin:
+      impl: ATLAS
 
 
 

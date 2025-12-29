@@ -31,6 +31,8 @@ MemorySystem:
       impl: BLISS
     RefreshManager:
       impl: AllBank
+    ControllerPlugin:
+      impl: BLISS
 
 
 

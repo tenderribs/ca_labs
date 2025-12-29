@@ -34,6 +34,8 @@ MemorySystem:
     RefreshManager:
       impl: AllBank
     plugins:
+      - ControllerPlugin:
+          impl: BLISS
 
   AddrMapper:
     impl: RoBaRaCoCh
