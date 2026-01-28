@@ -66,6 +66,14 @@ I ran one multicore simulation (2C L-Trace, 2C H-Trace) and two single core simu
 | High Intensity (H) | 0.602           | 0.416          | -31% |
 | Low Intensity (L)  | 3.22            | 2.174          | -32% |
 
+**Explanation of Results:**
+
+The significant drop in IPC (~30%) for both application types in the multi-core scenario is caused by resource contention and inter-application interference in the shared memory system.
+
+1.  **Shared Channel Bandwidth:** All four cores share a single DDR4 channel. In the single-core baseline, the application has exclusive access to the channel's bandwidth. In the multi-core scenario, the high-intensity ("H") applications compete for this limited bandwidth, saturating the data bus and slowing down their own execution.
+2.  **Queuing Delays (Latency):** The memory controller's request queue is shared. The "H" applications generate a large volume of requests that fill the queue. The low-intensity ("L") applications, which are latency-sensitive, suffer a performance penalty because their occasional requests get stuck behind the heavy traffic of the "H" applications, significantly increasing their average memory access latency.
+3.  **Bank Conflicts:** With four applications running, there is a higher probability of requests from different cores accessing different rows in the same bank. This leads to row-buffer conflicts.
+
 ### Question 4
 
 The TraceRecorder plugin is a memory controller plugin designed to log a cycle-accurate trace of all DRAM commands issued by the controller to a file. It creates a per-channel trace file at the path specified in the configuration. Every time the memory controller issues a command, the plugin records a new entry containing the following data:
@@ -165,6 +173,8 @@ In the `3L-1H` case, all schedulers maintain reasonable fairness (Slowdown < 1.3
 - ATLAS provides the highest peak performance for mixed workloads but is fragile in homogeneous, memory-intensive scenarios due to its coarse-grained quantum and strict ranking.
 - BLISS offers a more balanced trade-off, delivering high performance in mixed workloads while degrading gracefully to FR-FCFS behavior in saturation scenarios, avoiding the extreme unfairness pitfalls of ATLAS.
 - FR-FCFS is an incredibly strong baseline, that offers similar performance to BLISS and ATLAS with much lower complexity.
+
+\newpage
 
 ## Citations
 
